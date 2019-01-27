@@ -56,13 +56,13 @@ pub struct Frame {
     pub func: String,
 
     /// File name of the source file where the function lives.
-    pub file: String,
+    pub file: Option<String>,
 
     /// The full file name of the source file where the function lives.
-    pub fullname: String,
+    pub fullname: Option<String>,
 
     /// Line number corresponding to the $pc.
-    pub line: usize,
+    pub line: Option<usize>,
 
     /// The shared library where this function is defined. This is only given if the frame’s
     /// function is not known.

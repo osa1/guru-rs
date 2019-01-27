@@ -47,6 +47,7 @@ impl BacktraceW {
 
         let view = gtk::TreeView::new_with_model(&model);
         view.set_vexpand(false);
+        view.set_hexpand(false);
         view.set_headers_visible(false);
 
         let add_text_renderer_col =
@@ -81,6 +82,11 @@ impl BacktraceW {
         ret
     }
 
+    /// ONLY USE TO ADD THIS TO CONTAINERS!
+    pub fn get_widget(&self) -> &gtk::Widget {
+        self.view.upcast_ref()
+    }
+
     /// Clear the contents (drop the frames). The widget will look like an empty list view.
     pub fn clear(&self) {
         self.model.clear();
@@ -91,13 +97,16 @@ impl BacktraceW {
         self.clear();
 
         for frame in &bt.0 {
+            let file_line = match (&frame.file, &frame.line) {
+                (Some(file), Some(line)) => format!("{}:{}", file, line),
+                _ => "".to_string(),
+            };
             let values: [&dyn gtk::ToValue; 4] = [
                 &format!("#{}", frame.level),
                 &frame.addr,
                 &frame.func,
-                &format!("{}:{}", frame.file, frame.line),
+                &file_line,
             ];
-
             self.model.set(&self.model.append(), &COL_INDICES, &values);
         }
     }

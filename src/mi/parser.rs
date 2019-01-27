@@ -261,7 +261,7 @@ fn parse_variable(s: &str) -> Option<(Variable, &str)> {
 // const → c-string
 // tuple → "{}" | "{" result ( "," result )* "}"
 // list  → "[]" | "[" value ( "," value )* "]" | "[" result ( "," result )* "]"
-fn parse_value(s: &str) -> Option<(Value, &str)> {
+pub fn parse_value(s: &str) -> Option<(Value, &str)> {
     let c = s.chars().next()?;
     let s = &s[c.len_utf8()..];
     match c {
