@@ -456,13 +456,14 @@ fn parse_out_of_band_tests() {
     );
     assert_eq!(
         parse_out_of_band("*running,thread-id=\"5\"\n"),
-        Some(
-            (OutOfBandResult::ExecAsyncRecord(AsyncRecord {
+        Some((
+            OutOfBandResult::ExecAsyncRecord(AsyncRecord {
                 token: None,
                 class: "running".to_string(),
                 results: vec![("thread-id".to_string(), Value::Const("5".to_string()))]
-            }), "")
-        )
+            }),
+            ""
+        ))
     )
 }
 

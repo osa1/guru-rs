@@ -22,7 +22,6 @@ pub struct Breakpoint {
     pub what: String,
 
     // TODO thread-groups?
-
     /// Number of times the breakpoint has been hit
     pub times: usize,
 }

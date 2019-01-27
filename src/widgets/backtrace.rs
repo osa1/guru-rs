@@ -1,7 +1,7 @@
 //! A `TreeView` for rendering backtraces.
 
-use gtk::prelude::*;
 use gio::prelude::*;
+use gtk::prelude::*;
 
 use crate::types::{Backtrace, Frame};
 
@@ -31,13 +31,10 @@ static COL_TYPES: [gtk::Type; 4] = [
 ];
 
 /// Column indices for when inserting rows into the list store
-static COL_INDICES: [u32; 4] = [
-    0, 1, 2, 3
-];
+static COL_INDICES: [u32; 4] = [0, 1, 2, 3];
 
 impl BacktraceW {
     pub fn new(bt: &Backtrace) -> BacktraceW {
-
         //
         // Create the store (model)
         //
