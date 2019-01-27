@@ -1,9 +1,11 @@
 pub use super::syntax_common::*;
 
+use std::collections::HashMap;
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Value {
     Const(String),
-    Tuple(Vec<(Variable, Value)>),
+    Tuple(HashMap<Variable, Value>),
     ValueList(Vec<Value>),
     ResultList(Vec<(Variable, Value)>),
 }

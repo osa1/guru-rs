@@ -1,6 +1,8 @@
-//! Parsing GDB-mi outputs.
+//! Parsing GDB-mi output to the AST defined in `mi::output_syntax`.
 
 use super::output_syntax::*;
+
+use std::collections::HashMap;
 
 macro_rules! guard {
     ( $x:expr ) => {
@@ -277,7 +279,7 @@ fn parse_value(s: &str) -> Option<(Value, &str)> {
             None
         }
         '{' => {
-            let mut tuple = vec![];
+            let mut tuple = HashMap::new();
             let mut s = s;
             loop {
                 match parse_result(s) {
@@ -288,14 +290,16 @@ fn parse_value(s: &str) -> Option<(Value, &str)> {
                             return None;
                         }
                     }
-                    Some((result, s_)) => {
-                        tuple.push(result);
+                    Some(((k, v), s_)) => {
+                        assert!(!tuple.contains_key(&k));
+                        tuple.insert(k, v);
                         s = s_;
-                        let c = s_.chars().next()?;
+                        let c = s.chars().next()?;
                         // This allows more than we need but whatever
                         if c == '}' {
-                            return Some((Value::Tuple(tuple), &s['}'.len_utf8()..]));
+                            return Some((Value::Tuple(tuple), &s[c.len_utf8()..]));
                         } else if c == ',' {
+                            s = &s[c.len_utf8()..];
                             continue;
                         } else {
                             return None;
@@ -319,10 +323,10 @@ fn parse_value(s: &str) -> Option<(Value, &str)> {
                     loop {
                         let c = s.chars().next()?;
                         if c == ',' {
-                            let (result, s_) = parse_result(s)?;
+                            let (result, s_) = parse_result(&s[c.len_utf8()..])?;
                             results.push(result);
                             s = s_;
-                        } else if c == '}' {
+                        } else if c == ']' {
                             return Some((Value::ResultList(results), &s[c.len_utf8()..]));
                         } else {
                             return None;
@@ -341,7 +345,7 @@ fn parse_value(s: &str) -> Option<(Value, &str)> {
                             let (value, s_) = parse_value(s)?;
                             values.push(value);
                             s = s_;
-                        } else if c == '}' {
+                        } else if c == ']' {
                             return Some((Value::ValueList(values), &s[c.len_utf8()..]));
                         } else {
                             return None;
@@ -411,6 +415,19 @@ fn parse_value_tests() {
     );
     assert_eq!(parse_value("{}"), Some((Value::Tuple(vec![]), "")));
     assert_eq!(parse_value("[]"), Some((Value::ValueList(vec![]), "")));
+
+    let input = "[frame={level=\"0\",addr=\"0x00000000006eff82\",func=\"initCapabilities\",file=\
+                 \"rts/Capability.c\",fullname=\"/home/omer/haskell/ghc-gc/rts/Capability.c\",\
+                 line=\"398\"},frame={level=\"1\",addr=\"0x00000000006ee476\",func=\"initScheduler\
+                 \",file=\"rts/Schedule.c\",fullname=\"/home/omer/haskell/ghc-gc/rts/Schedule.c\
+                 \",line=\"2680\"},frame={level=\"2\",addr=\"0x00000000006e8cc0\",\
+                 func=\"hs_init_ghc\",file=\"rts/RtsStartup.c\",fullname=\
+                 \"/home/omer/haskell/ghc-gc/rts/RtsStartup.c\",line=\"236\"},frame={level=\"3\"\
+                 ,addr=\"0x0000000000701f08\",func=\"hs_main\",file=\"rts/RtsMain.c\",\
+                 fullname=\"/home/omer/haskell/ghc-gc/rts/RtsMain.c\",line=\"57\"},\
+                 frame={level=\"4\",addr=\"0x0000000000405366\",func=\"main\"}]";
+    let out = parse_value(input);
+    assert!(out.is_some());
 }
 
 #[test]
