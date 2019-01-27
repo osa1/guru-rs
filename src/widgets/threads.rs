@@ -45,4 +45,32 @@ impl ThreadsW {
     pub fn get_widget(&self) -> &gtk::Widget {
         self.widget.upcast_ref()
     }
+
+    /// Make same columns of different thread views the same. Note that this only works after
+    /// rendering the widget (e.g. after show_all()).
+    pub fn reset_cols(&self) {
+        let mut max_1 = 0;
+        let mut max_2 = 0;
+        let mut max_3 = 0;
+        let mut max_4 = 0;
+        for t in &self.threads {
+            let (c1, c2, c3, c4) = t.get_col_widths();
+            if c1 > max_1 {
+                max_1 = c1;
+            }
+            if c2 > max_2 {
+                max_2 = c2;
+            }
+            if c3 > max_3 {
+                max_3 = c3;
+            }
+            if c4 > max_4 {
+                max_4 = c4;
+            }
+        }
+        println!("{} {} {} {}", max_1, max_2, max_3, max_4);
+        for t in &self.threads {
+            t.set_col_widths(max_1, max_2, max_3, max_4);
+        }
+    }
 }

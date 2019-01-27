@@ -23,6 +23,7 @@ fn main() {
 
 fn build_ui(application: &gtk::Application) {
     let window = gtk::ApplicationWindow::new(application);
+    window.set_default_size(500, 850);
     window.set_title("guru");
 
     let paned_vert = gtk::Paned::new(gtk::Orientation::Vertical);
@@ -32,7 +33,7 @@ fn build_ui(application: &gtk::Application) {
 
     let mut bts = vec![];
     let frame_strs = vec![
-        FRAME_0, FRAME_1, FRAME_2, FRAME_3, FRAME_4, FRAME_6, FRAME_7,
+        FRAME_0, FRAME_1, FRAME_2, FRAME_3, FRAME_4, FRAME_5, FRAME_6, FRAME_7,
     ];
     for frame_str in frame_strs {
         let bt_mi = mi::parser::parse_value(frame_str).unwrap().0;
@@ -46,6 +47,9 @@ fn build_ui(application: &gtk::Application) {
     paned_horiz.add2(threads_widget.get_widget());
 
     window.show_all();
+
+    // This only works after rendering
+    threads_widget.reset_cols();
 }
 
 static FRAME_0: &'static str = "[frame={level=\"0\",addr=\"0x00000000006eff82\",func=\"initCapabilities\",file=\"rts/Capability.c\",fullname=\"/home/omer/haskell/ghc-gc/rts/Capability.c\",line=\"398\"},frame={level=\"1\",addr=\"0x00000000006ee476\",func=\"initScheduler\",file=\"rts/Schedule.c\",fullname=\"/home/omer/haskell/ghc-gc/rts/Schedule.c\",line=\"2680\"},frame={level=\"2\",addr=\"0x00000000006e8cc0\",func=\"hs_init_ghc\",file=\"rts/RtsStartup.c\",fullname=\"/home/omer/haskell/ghc-gc/rts/RtsStartup.c\",line=\"236\"},frame={level=\"3\",addr=\"0x0000000000701f08\",func=\"hs_main\",file=\"rts/RtsMain.c\",fullname=\"/home/omer/haskell/ghc-gc/rts/RtsMain.c\",line=\"57\"},frame={level=\"4\",addr=\"0x0000000000405366\",func=\"main\"}]";

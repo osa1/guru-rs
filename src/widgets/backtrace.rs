@@ -87,6 +87,26 @@ impl BacktraceW {
         self.view.upcast_ref()
     }
 
+    pub fn get_col_widths(&self) -> (i32, i32, i32, i32) {
+        let columns = self.view.get_columns();
+        assert!(columns.len() == 4);
+        (
+            columns[0].get_width(),
+            columns[1].get_width(),
+            columns[2].get_width(),
+            columns[3].get_width(),
+        )
+    }
+
+    pub fn set_col_widths(&self, c1: i32, c2: i32, c3: i32, c4: i32) {
+        let columns = self.view.get_columns();
+        assert!(columns.len() == 4);
+        columns[0].set_fixed_width(c1);
+        columns[1].set_fixed_width(c2);
+        columns[2].set_fixed_width(c3);
+        columns[3].set_fixed_width(c4);
+    }
+
     /// Clear the contents (drop the frames). The widget will look like an empty list view.
     pub fn clear(&self) {
         self.model.clear();
