@@ -44,3 +44,51 @@ pub fn parse_backtrace(v: Vec<(mi::Variable, mi::Value)>) -> Option<Backtrace> {
     }
     Some(Backtrace(frames))
 }
+
+pub fn parse_breakpoint(v: HashMap<mi::Variable, mi::Value>) -> Option<Breakpoint> {
+    let number = v.get("number")?.get_const_ref()?.parse::<u32>().ok()?;
+    let type_ = {
+        guard!(v.get("type")?.get_const_ref()? == "breakpoint");
+        BreakpointType::Breakpoint
+    };
+    let disposition = match v.get("disp")?.get_const_ref()? {
+        "keep" => BreakpointDisposition::Keep,
+        "nokeep" => BreakpointDisposition::NoKeep,
+        _ => {
+            return None;
+        }
+    };
+    let enabled = match v.get("enabled")?.get_const_ref()? {
+        "y" => true,
+        "n" => false,
+        _ => {
+            return None;
+        }
+    };
+    let address = v.get("addr")?.get_const_ref()?.to_string();
+    let func = v.get("func")?.get_const_ref()?.to_string();
+    let file = v.get("file")?.get_const_ref()?.to_string();
+    let fullname = v.get("fullname")?.get_const_ref()?.to_string();
+    let line = v.get("line")?.get_const_ref()?.parse::<u32>().ok()?;
+    // TODO thread-groups
+    let cond = match v.get("cond") {
+        None => None,
+        Some(cond) => Some(cond.get_const_ref()?.to_string()),
+    };
+    let hits = v.get("times")?.get_const_ref()?.parse::<u32>().ok()?;
+    // TODO original-location
+
+    Some(Breakpoint {
+        number,
+        type_,
+        disposition,
+        enabled,
+        address,
+        func,
+        file,
+        fullname,
+        line,
+        cond,
+        hits,
+    })
+}

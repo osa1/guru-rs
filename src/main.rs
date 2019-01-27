@@ -26,10 +26,13 @@ fn build_ui(application: &gtk::Application) {
     window.set_default_size(500, 850);
     window.set_title("guru");
 
-    let paned_vert = gtk::Paned::new(gtk::Orientation::Vertical);
+    // Horizontal: | Vertical: -
+
+    // horiz -> [ vert -> [ breakpoints, <currently empty> ], threads ]
     let paned_horiz = gtk::Paned::new(gtk::Orientation::Horizontal);
-    paned_vert.add2(&paned_horiz);
-    window.add(&paned_vert);
+    let paned_vert = gtk::Paned::new(gtk::Orientation::Vertical);
+    paned_horiz.add1(&paned_vert);
+    window.add(&paned_horiz);
 
     let mut bts = vec![];
     let frame_strs = vec![
@@ -45,6 +48,19 @@ fn build_ui(application: &gtk::Application) {
 
     let threads_widget = widgets::threads::ThreadsW::new(&bts);
     paned_horiz.add2(threads_widget.get_widget());
+
+    // Breakpoints
+    let mut bps = vec![];
+    let mut bp_strings = vec![BP_1, BP_2];
+    for bp_string in bp_strings {
+        let bp_mi = mi::parser::parse_value(bp_string).unwrap().0;
+        let bp_tuple = bp_mi.get_tuple().unwrap();
+        println!("bp_mi tuple: {:?}", bp_tuple);
+        let bp = parsers::parse_breakpoint(bp_tuple).unwrap();
+        bps.push(bp);
+    }
+    let bps = widgets::breakpoints::BreakpointsW::new(&bps);
+    paned_vert.add1(bps.get_widget());
 
     window.show_all();
 
@@ -67,3 +83,7 @@ static FRAME_5: &'static str = "[frame={level=\"0\",addr=\"0x00007ffff684abb7\",
 static FRAME_6: &'static str = "[frame={level=\"0\",addr=\"0x00000000004b2281\",func=\"GarbageCollect\",file=\"rts/sm/GC.c\",fullname=\"/home/ben/bin-dist-8.6.3-Linux-dwarf/ghc/rts/sm/GC.c\",line=\"203\"},frame={level=\"1\",addr=\"0x00000000004a3e8d\",func=\"scheduleDoGC\",file=\"rts/Schedule.c\",fullname=\"/home/ben/bin-dist-8.6.3-Linux-dwarf/ghc/rts/Schedule.c\",line=\"1797\"},frame={level=\"2\",addr=\"0x00000000004a4d63\",func=\"schedule\",file=\"rts/Schedule.c\",fullname=\"/home/ben/bin-dist-8.6.3-Linux-dwarf/ghc/rts/Schedule.c\",line=\"545\"},frame={level=\"3\",addr=\"0x00000000004a54b1\",func=\"scheduleWorker\",file=\"rts/Schedule.c\",fullname=\"/home/ben/bin-dist-8.6.3-Linux-dwarf/ghc/rts/Schedule.c\",line=\"2550\"},frame={level=\"4\",addr=\"0x00000000004ac12a\",func=\"workerStart\",file=\"rts/Task.c\",fullname=\"/home/ben/bin-dist-8.6.3-Linux-dwarf/ghc/rts/Task.c\",line=\"444\"},frame={level=\"5\",addr=\"0x00007ffff6f876db\",func=\"start_thread\",file=\"pthread_create.c\",fullname=\"/build/glibc-OTsEL5/glibc-2.27/nptl/pthread_create.c\",line=\"463\"},frame={level=\"6\",addr=\"0x00007ffff684a88f\",func=\"clone\",file=\"../sysdeps/unix/sysv/linux/x86_64/clone.S\",fullname=\"/build/glibc-OTsEL5/glibc-2.27/misc/../sysdeps/unix/sysv/linux/x86_64/clone.S\",line=\"95\"}]";
 
 static FRAME_7: &'static str = "[frame={level=\"0\",addr=\"0x00000000004b3db1\",func=\"ACQUIRE_SPIN_LOCK\",file=\"includes/rts/SpinLock.h\",fullname=\"/home/ben/bin-dist-8.6.3-Linux-dwarf/ghc/includes/rts/SpinLock.h\",line=\"47\"},frame={level=\"1\",addr=\"0x00000000004b3db1\",func=\"gcWorkerThread\",file=\"rts/sm/GC.c\",fullname=\"/home/ben/bin-dist-8.6.3-Linux-dwarf/ghc/rts/sm/GC.c\",line=\"1143\"},frame={level=\"2\",addr=\"0x00000000004a6b48\",func=\"yieldCapability\",file=\"rts/Capability.c\",fullname=\"/home/ben/bin-dist-8.6.3-Linux-dwarf/ghc/rts/Capability.c\",line=\"861\"},frame={level=\"3\",addr=\"0x00000000004a47c9\",func=\"scheduleYield\",file=\"rts/Schedule.c\",fullname=\"/home/ben/bin-dist-8.6.3-Linux-dwarf/ghc/rts/Schedule.c\",line=\"672\"},frame={level=\"4\",addr=\"0x00000000004a47c9\",func=\"schedule\",file=\"rts/Schedule.c\",fullname=\"/home/ben/bin-dist-8.6.3-Linux-dwarf/ghc/rts/Schedule.c\",line=\"292\"},frame={level=\"5\",addr=\"0x00000000004a54b1\",func=\"scheduleWorker\",file=\"rts/Schedule.c\",fullname=\"/home/ben/bin-dist-8.6.3-Linux-dwarf/ghc/rts/Schedule.c\",line=\"2550\"},frame={level=\"6\",addr=\"0x00000000004ac12a\",func=\"workerStart\",file=\"rts/Task.c\",fullname=\"/home/ben/bin-dist-8.6.3-Linux-dwarf/ghc/rts/Task.c\",line=\"444\"},frame={level=\"7\",addr=\"0x00007ffff6f876db\",func=\"start_thread\",file=\"pthread_create.c\",fullname=\"/build/glibc-OTsEL5/glibc-2.27/nptl/pthread_create.c\",line=\"463\"},frame={level=\"8\",addr=\"0x00007ffff684a88f\",func=\"clone\",file=\"../sysdeps/unix/sysv/linux/x86_64/clone.S\",fullname=\"/build/glibc-OTsEL5/glibc-2.27/misc/../sysdeps/unix/sysv/linux/x86_64/clone.S\",line=\"95\"}]";
+
+static BP_1: &'static str = "{number=\"1\",type=\"breakpoint\",disp=\"keep\",enabled=\"y\",addr=\"0x00000000004b2281\",func=\"GarbageCollect\",file=\"rts/sm/GC.c\",fullname=\"/home/ben/bin-dist-8.6.3-Linux-dwarf/ghc/rts/sm/GC.c\",line=\"203\",thread-groups=[\"i1\"],times=\"1\",original-location=\"GarbageCollect\"}";
+
+static BP_2: &'static str = "{number=\"2\",type=\"breakpoint\",disp=\"keep\",enabled=\"y\",addr=\"0x00000000004ccb0d\",func=\"evacuate\",file=\"rts/sm/Evac.c\",fullname=\"/home/ben/bin-dist-8.6.3-Linux-dwarf/ghc/rts/sm/Evac.c\",line=\"502\",thread-groups=[\"i1\"],cond=\"p == 0x0\",times=\"0\",original-location=\"evacuate\"}";

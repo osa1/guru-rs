@@ -12,7 +12,7 @@ pub struct BacktraceW {
 
 /// Column indices for cell renderers
 #[repr(i32)]
-enum BacktraceListCols {
+enum Cols {
     Level = 0,
     // e.g. "0x00000000007458e8"
     Addr,
@@ -50,27 +50,26 @@ impl BacktraceW {
         view.set_hexpand(false);
         view.set_headers_visible(false);
 
-        let add_text_renderer_col =
-            |title: &'static str, col_ty: BacktraceListCols, selectable: bool| {
-                let renderer = gtk::CellRendererText::new();
-                let column = gtk::TreeViewColumn::new();
-                column.pack_start(&renderer, true);
-                column.set_title(title);
-                column.add_attribute(&renderer, "text", col_ty as i32);
-                if selectable {
-                    // We don't want to allow editing but we want to allow copying the contents, so we
-                    // enable editing, but we don't update the text in "edited" callback.
-                    renderer.set_property_editable(true);
-                    renderer.connect_edited(|_w, _path, _str| {});
-                }
-                // Finally add the column
-                view.append_column(&column);
-            };
+        let add_text_renderer_col = |title: &'static str, col_ty: Cols, selectable: bool| {
+            let renderer = gtk::CellRendererText::new();
+            let column = gtk::TreeViewColumn::new();
+            column.pack_start(&renderer, true);
+            column.set_title(title);
+            column.add_attribute(&renderer, "text", col_ty as i32);
+            if selectable {
+                // We don't want to allow editing but we want to allow copying the contents, so we
+                // enable editing, but we don't update the text in "edited" callback.
+                renderer.set_property_editable(true);
+                renderer.connect_edited(|_w, _path, _str| {});
+            }
+            // Finally add the column
+            view.append_column(&column);
+        };
 
-        add_text_renderer_col("Level", BacktraceListCols::Level, false);
-        add_text_renderer_col("Address", BacktraceListCols::Addr, true);
-        add_text_renderer_col("Function", BacktraceListCols::Func, true);
-        add_text_renderer_col("Location", BacktraceListCols::Loc, true);
+        add_text_renderer_col("Level", Cols::Level, false);
+        add_text_renderer_col("Address", Cols::Addr, true);
+        add_text_renderer_col("Function", Cols::Func, true);
+        add_text_renderer_col("Location", Cols::Loc, true);
 
         //
         // Insert the rows

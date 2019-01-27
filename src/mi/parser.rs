@@ -336,8 +336,6 @@ pub fn parse_value(s: &str) -> Option<(Value, &str)> {
                 Some((value0, s)) => {
                     // Value list
                     let mut values = vec![value0];
-                    let (value, s) = parse_value(s)?;
-                    values.push(value);
                     let mut s = s;
                     loop {
                         let c = s.chars().next()?;

@@ -6,7 +6,7 @@
 
 #[derive(Debug)]
 pub struct Breakpoint {
-    pub number: usize,
+    pub number: u32,
 
     pub type_: BreakpointType,
 
@@ -18,12 +18,29 @@ pub struct Breakpoint {
     /// Memory location at which the breakpoint is set.
     pub address: String,
 
-    /// Logical location of the breakpoint, expressed by function name, file name, line number.
-    pub what: String,
+    /*
+        Sigh ... gdb-mi documentation is out of date
+        /// Logical location of the breakpoint, expressed by function name, file name, line number.
+        pub what: String,
+    */
+    /// Function name
+    pub func: String,
+
+    /// File name
+    pub file: String,
+
+    /// Full path of the file
+    pub fullname: String,
+
+    /// Line number
+    pub line: u32,
+
+    /// Condition
+    pub cond: Option<String>,
 
     // TODO thread-groups?
     /// Number of times the breakpoint has been hit
-    pub times: usize,
+    pub hits: u32,
 }
 
 // NOTE: GDB has more details like whether the watchpoint is hardware or not. We ignore those for
