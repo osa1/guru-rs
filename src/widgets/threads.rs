@@ -21,7 +21,7 @@ impl ThreadsW {
         let scrolled = gtk::ScrolledWindow::new(gtk::NONE_ADJUSTMENT, gtk::NONE_ADJUSTMENT);
         scrolled.set_policy(gtk::PolicyType::Automatic, gtk::PolicyType::Automatic);
 
-        let box_ = gtk::Box::new(gtk::Orientation::Vertical, 10);
+        let box_ = gtk::Box::new(gtk::Orientation::Vertical, 0);
         box_.set_baseline_position(gtk::BaselinePosition::Top);
         scrolled.add(&box_);
 
