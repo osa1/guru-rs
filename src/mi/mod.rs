@@ -8,4 +8,6 @@ pub mod output_syntax;
 pub mod parser;
 pub mod syntax_common;
 
+pub use output_syntax::*;
+pub use parser::parse_output;
 pub use syntax_common::*;

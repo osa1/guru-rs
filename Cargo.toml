@@ -8,7 +8,8 @@ edition = "2018"
 cairo-rs = { git = "https://github.com/gtk-rs/cairo.git" }
 gdk = { git = "https://github.com/gtk-rs/gdk.git" }
 gio = { git = "https://github.com/gtk-rs/gio.git" }
+glib = { git = "https://github.com/gtk-rs/glib.git" }
 
 [dependencies.gtk]
 git = "https://github.com/gtk-rs/gtk.git"
-features = ["v3_16"]
+features = ["v3_22_30"]
