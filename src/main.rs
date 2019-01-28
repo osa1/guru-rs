@@ -78,6 +78,10 @@ fn build_ui(application: &gtk::Application) {
 
     // This only works after rendering
     threads_widget.reset_cols();
+
+    // Create gdb driver
+    let (mut send, mut recv) = glib::MainContext::channel(glib::source::PRIORITY_DEFAULT);
+    let gdb_driver = gdb::GDB::with_args(vec![], send);
 }
 
 static FRAME_0: &'static str = "[frame={level=\"0\",addr=\"0x00000000006eff82\",func=\"initCapabilities\",file=\"rts/Capability.c\",fullname=\"/home/omer/haskell/ghc-gc/rts/Capability.c\",line=\"398\"},frame={level=\"1\",addr=\"0x00000000006ee476\",func=\"initScheduler\",file=\"rts/Schedule.c\",fullname=\"/home/omer/haskell/ghc-gc/rts/Schedule.c\",line=\"2680\"},frame={level=\"2\",addr=\"0x00000000006e8cc0\",func=\"hs_init_ghc\",file=\"rts/RtsStartup.c\",fullname=\"/home/omer/haskell/ghc-gc/rts/RtsStartup.c\",line=\"236\"},frame={level=\"3\",addr=\"0x0000000000701f08\",func=\"hs_main\",file=\"rts/RtsMain.c\",fullname=\"/home/omer/haskell/ghc-gc/rts/RtsMain.c\",line=\"57\"},frame={level=\"4\",addr=\"0x0000000000405366\",func=\"main\"}]";

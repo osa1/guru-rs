@@ -23,16 +23,18 @@ impl GDB {
     /// A spawns that reads gdb stdout and sends parsed mi messages to `msg_sender` will be
     /// spawned.
     pub fn with_args(mut args: Vec<String>, mut msg_sender: Sender<mi::Output>) -> GDB {
-        args.insert(0, "--args".to_string());
+        // args.insert(0, "--args".to_string());
+        args.push("-i=mi".to_string());
         let mut process = Command::new("gdb")
             .args(args.into_iter())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            // .stderr(Stdio::piped())
             .spawn()
             .unwrap();
 
         let mut stdout = process.stdout.take().unwrap();
+        println!("Spawning gdb-mi message handler");
         let message_handler = thread::spawn(move || message_handler(&mut stdout, &mut msg_sender));
 
         GDB {
@@ -49,7 +51,9 @@ impl GDB {
 }
 
 /// mi messages end with this.
-static MI_MSG_SEP: &'static str = "(gdb)\n";
+/// (Actually they're supposed to end with "(gdb)\r\n" or "(gdb)\n" according to the documentation,
+/// but gdb on my system actually terminates messages with "(gdb) \n". Nice.)
+static MI_MSG_SEP: &'static str = "(gdb) \n";
 
 /// Read "(gdb)\n" delimited mi messages from `stdout`, send parsed messages to `msg_handler`.
 fn message_handler(stdout: &mut ChildStdout, msg_sender: &mut Sender<mi::Output>) {
@@ -60,6 +64,10 @@ fn message_handler(stdout: &mut ChildStdout, msg_sender: &mut Sender<mi::Output>
     loop {
         let mut read_buf: [u8; 10000] = [0; 10000];
         let len = stdout.read(&mut read_buf).unwrap();
+        println!("Message handler read {} bytes", len);
+        if len == 0 {
+            return;
+        }
         msg_bytes.extend_from_slice(&read_buf[0..len]);
         let msg_str = match str::from_utf8(&msg_bytes) {
             Err(err) => {
@@ -73,19 +81,22 @@ fn message_handler(stdout: &mut ChildStdout, msg_sender: &mut Sender<mi::Output>
             }
             Ok(str) => str,
         };
+        println!("Current message buffer:\n{:?}", msg_str);
         match msg_str.find(MI_MSG_SEP) {
             None => {
+                println!("Can't find MI_MSG_SEP");
                 continue;
             }
             Some(idx) => {
-                let idx = idx + MI_MSG_SEP.len();
+                let mut idx = idx + MI_MSG_SEP.len();
                 let msg = &msg_str[0..idx];
                 match mi::parse_output(msg) {
                     None => {
-                        println!("Can't parse mi message: {}", msg);
+                        println!("Can't parse mi message: {:?}", msg);
                     }
                     Some((mi_msg, rest)) => {
                         assert!(rest.is_empty());
+                        println!("mi message parsed: {:?}", mi_msg);
                         msg_sender.send(mi_msg);
                         msg_bytes.drain(0..idx);
                     }
