@@ -3,6 +3,7 @@ extern crate gdk;
 extern crate gio;
 extern crate gtk;
 
+mod gdb;
 mod mi;
 mod parsers;
 mod types;
@@ -18,7 +19,7 @@ fn main() {
     application.connect_startup(build_ui);
     application.connect_activate(|_| {});
 
-    application.run(&::std::env::args().collect::<Vec<_>>());
+    application.run(&[]);
 }
 
 fn build_ui(application: &gtk::Application) {
@@ -46,7 +47,7 @@ fn build_ui(application: &gtk::Application) {
         bts.push(bt);
     }
 
-    let threads_widget = widgets::threads::ThreadsW::new(&bts);
+    let threads_widget = widgets::ThreadsW::new(&bts);
     horiz1.add2(threads_widget.get_widget());
 
     // Breakpoints
@@ -59,14 +60,14 @@ fn build_ui(application: &gtk::Application) {
         let bp = parsers::parse_breakpoint(bp_tuple).unwrap();
         bps.push(bp);
     }
-    let bps = widgets::breakpoints::BreakpointsW::new(&bps);
+    let bps = widgets::BreakpointsW::new(&bps);
 
     let vert2 = gtk::Paned::new(gtk::Orientation::Vertical);
     vert1.pack1(&vert2, true, false);
     vert1.pack2(bps.get_widget(), true, true);
     vert1.set_position(100);
 
-    let gdb_view = widgets::gdb::GdbW::new();
+    let gdb_view = widgets::GdbW::new();
     let some_label = gtk::Label::new("foo");
     vert2.pack2(gdb_view.get_widget(), true, false);
     vert2.set_position(100);
