@@ -25,13 +25,13 @@ pub fn parse_output(s: &str) -> Option<(Output, &str)> {
             Some(result)
         }
     };
-    guard!(s == "(gdb)\n");
+    guard!(s == "(gdb) \n");
     Some((
         Output {
             out_of_band,
             result,
         },
-        &s["(gdb)\n".len()..],
+        &s["(gdb) \n".len()..],
     ))
 }
 
@@ -74,16 +74,28 @@ fn parse_out_of_band(s: &str) -> Option<(OutOfBandResult, &str)> {
                     Some((OutOfBandResult::NotifyAsyncRecord(async_record), s))
                 }
                 '~' => {
-                    let (stream_record, s) = parse_stream_record(s)?;
-                    Some((OutOfBandResult::ConsoleStreamRecord(stream_record), s))
+                    let (stream_record, s) = parse_string(s)?;
+                    guard!(s.chars().next()? == '\n');
+                    Some((
+                        OutOfBandResult::ConsoleStreamRecord(stream_record),
+                        &s['\n'.len_utf8()..],
+                    ))
                 }
                 '@' => {
-                    let (stream_record, s) = parse_stream_record(s)?;
-                    Some((OutOfBandResult::TargetStreamRecord(stream_record), s))
+                    let (stream_record, s) = parse_string(s)?;
+                    guard!(s.chars().next()? == '\n');
+                    Some((
+                        OutOfBandResult::TargetStreamRecord(stream_record),
+                        &s['\n'.len_utf8()..],
+                    ))
                 }
                 '&' => {
-                    let (stream_record, s) = parse_stream_record(s)?;
-                    Some((OutOfBandResult::LogStreamRecord(stream_record), s))
+                    let (stream_record, s) = parse_string(s)?;
+                    guard!(s.chars().next()? == '\n');
+                    Some((
+                        OutOfBandResult::LogStreamRecord(stream_record),
+                        &s['\n'.len_utf8()..],
+                    ))
                 }
                 _ => None,
             }
@@ -263,22 +275,10 @@ fn parse_variable(s: &str) -> Option<(Variable, &str)> {
 // list  → "[]" | "[" value ( "," value )* "]" | "[" result ( "," result )* "]"
 pub fn parse_value(s: &str) -> Option<(Value, &str)> {
     let c = s.chars().next()?;
-    let s = &s[c.len_utf8()..];
     match c {
-        '"' => {
-            let mut ret = String::new();
-            let mut c_idx = 0;
-            for c in s.chars() {
-                c_idx += c.len_utf8();
-                if c == '"' {
-                    return Some((Value::Const(ret), &s[c_idx..]));
-                } else {
-                    ret.push(c);
-                }
-            }
-            None
-        }
+        '"' => parse_string(s).map(|(ret, s)| (Value::Const(ret), s)),
         '{' => {
+            let s = &s[c.len_utf8()..];
             let mut tuple = HashMap::new();
             let mut s = s;
             loop {
@@ -310,6 +310,7 @@ pub fn parse_value(s: &str) -> Option<(Value, &str)> {
         }
         '[' => {
             // Value or result list?
+            let s = &s[c.len_utf8()..];
             if s.chars().next()? == ']' {
                 return Some((Value::ValueList(vec![]), &s[']'.len_utf8()..]));
             }
@@ -356,30 +357,35 @@ pub fn parse_value(s: &str) -> Option<(Value, &str)> {
     }
 }
 
-// stream-record         → console-stream-output | target-stream-output | log-stream-output
-// console-stream-output → "~" c-string nl
-// target-stream-output  → "@" c-string nl
-// log-stream-output     → "&" c-string nl
-//
-// c-string is dquote delimited anything.
-//
-// Note that we don't parse ~/@/& here. Those are parsed at the call site.
-fn parse_stream_record(mut s: &str) -> Option<(String, &str)> {
+fn parse_string(mut s: &str) -> Option<(String, &str)> {
     guard!(s.chars().next()? == '"');
     s = &s['"'.len_utf8()..];
     let mut output = String::new();
     let mut c_idx = 0;
+    let mut escape = false;
     for c in s.chars() {
         c_idx += c.len_utf8();
-        if c == '"' {
-            break;
+        if c == '\\' {
+            if escape {
+                escape = false;
+                output.push(c);
+            } else {
+                escape = true;
+            }
+        } else if c == '"' {
+            if escape {
+                output.push(c);
+                escape = false;
+            } else {
+                break;
+            }
         } else {
             output.push(c);
+            escape = false; // FIXME
         }
     }
     s = &s[c_idx..];
-    guard!(s.chars().next()? == '\n');
-    Some((output, &s['\n'.len_utf8()..]))
+    Some((output, s))
 }
 
 #[test]
@@ -411,7 +417,7 @@ fn parse_value_tests() {
         parse_value("\"foo\""),
         Some((Value::Const("foo".to_string()), ""))
     );
-    assert_eq!(parse_value("{}"), Some((Value::Tuple(vec![]), "")));
+    assert_eq!(parse_value("{}"), Some((Value::Tuple(HashMap::new()), "")));
     assert_eq!(parse_value("[]"), Some((Value::ValueList(vec![]), "")));
 
     let input = "[frame={level=\"0\",addr=\"0x00000000006eff82\",func=\"initCapabilities\",file=\
@@ -476,7 +482,7 @@ fn parse_output_tests() {
         result: None,
     };
     assert_eq!(
-        parse_output("=thread-group-added,id=\"i1\"\n(gdb)\n"),
+        parse_output("=thread-group-added,id=\"i1\"\n(gdb) \n"),
         Some((out, ""))
     );
 
@@ -495,7 +501,7 @@ fn parse_output_tests() {
         result: None,
     };
     assert_eq!(
-        parse_output("=cmd-param-changed,param=\"history save\",value=\"on\"\n(gdb)\n"),
+        parse_output("=cmd-param-changed,param=\"history save\",value=\"on\"\n(gdb) \n"),
         Some((out, ""))
     );
 
@@ -506,11 +512,11 @@ fn parse_output_tests() {
              =cmd-param-changed,param=\"print array-indexes\",value=\"on\"\n\
              =cmd-param-changed,param=\"python print-stack\",value=\"full\"\n\
              =cmd-param-changed,param=\"pagination\",value=\"off\"\n\
-             (gdb)\n";
+             (gdb) \n";
     assert_eq!(parse_output(s).map(|t| t.1), Some(""));
 
     let s = "~\"Reading symbols from gc_test...\"\n\
-             (gdb)\n";
+             (gdb) \n";
     let out = Output {
         out_of_band: vec![OutOfBandResult::ConsoleStreamRecord(
             "Reading symbols from gc_test...".to_string(),
@@ -518,4 +524,7 @@ fn parse_output_tests() {
         result: None,
     };
     assert_eq!(parse_output(s), Some((out, "")));
+
+    let s = "~\"\\\"\"\n(gdb) \n";
+    assert_eq!(parse_output(s).map(|t| t.1), Some(""));
 }
