@@ -28,11 +28,11 @@ fn build_ui(application: &gtk::Application) {
 
     // Horizontal: | Vertical: -
 
-    // horiz -> [ vert -> [ breakpoints, <currently empty> ], threads ]
-    let paned_horiz = gtk::Paned::new(gtk::Orientation::Horizontal);
-    let paned_vert = gtk::Paned::new(gtk::Orientation::Vertical);
-    paned_horiz.add1(&paned_vert);
-    window.add(&paned_horiz);
+    // horiz(1) -> [ vert(1) -> [ vert(2) -> [ currently_empty, gdb logs ], breakpoints ], threads ]
+    let horiz1 = gtk::Paned::new(gtk::Orientation::Horizontal);
+    let vert1 = gtk::Paned::new(gtk::Orientation::Vertical);
+    horiz1.add1(&vert1);
+    window.add(&horiz1);
 
     let mut bts = vec![];
     let frame_strs = vec![
@@ -47,7 +47,7 @@ fn build_ui(application: &gtk::Application) {
     }
 
     let threads_widget = widgets::threads::ThreadsW::new(&bts);
-    paned_horiz.add2(threads_widget.get_widget());
+    horiz1.add2(threads_widget.get_widget());
 
     // Breakpoints
     let mut bps = vec![];
@@ -60,7 +60,17 @@ fn build_ui(application: &gtk::Application) {
         bps.push(bp);
     }
     let bps = widgets::breakpoints::BreakpointsW::new(&bps);
-    paned_vert.add1(bps.get_widget());
+
+    let vert2 = gtk::Paned::new(gtk::Orientation::Vertical);
+    vert1.pack1(&vert2, true, false);
+    vert1.pack2(bps.get_widget(), true, true);
+    vert1.set_position(100);
+
+    let gdb_view = widgets::gdb::GdbW::new();
+    let some_label = gtk::Label::new("foo");
+    vert2.pack2(gdb_view.get_widget(), true, false);
+    vert2.set_position(100);
+    // vert1.add1(gdb_view.get_widget());
 
     window.show_all();
 
