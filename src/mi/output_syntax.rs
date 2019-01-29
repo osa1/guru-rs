@@ -33,10 +33,14 @@ impl Value {
     }
 }
 
+// This is different than the syntax defined in gdb-mi documentation because the documentation is
+// wrong. See comments around `mi::parser::parse_output`.
+pub type Output = Vec<ResultOrOOB>;
+
 #[derive(Debug, PartialEq, Eq)]
-pub struct Output {
-    pub out_of_band: Vec<OutOfBandResult>,
-    pub result: Option<Result>,
+pub enum ResultOrOOB {
+    Result(Result),
+    OOB(OutOfBandResult),
 }
 
 #[derive(Debug, PartialEq, Eq)]

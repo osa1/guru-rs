@@ -73,7 +73,7 @@ impl App {
         app
     }
 
-    pub fn gdb_connect(&self, args: Vec<String>) {
+    pub fn gdb_connect(&self, args: &[String]) {
         let (mut send, mut recv) = glib::MainContext::channel(glib::source::PRIORITY_DEFAULT);
         let gdb = gdb::GDB::with_args(args, send); // TODO errors
         let main_context = glib::MainContext::default();
@@ -86,68 +86,60 @@ impl App {
         self.0.borrow().gdb_w.enter_connected_state();
     }
 
-    pub fn mi_msg_recvd(&self, mi_msg: mi::Output) -> gtk::Continue {
+    pub fn mi_msg_recvd(&self, mi_msgs: mi::Output) -> gtk::Continue {
         let inner = self.0.borrow();
-        for oob in mi_msg.out_of_band {
-            match oob {
-                mi::OutOfBandResult::ExecAsyncRecord(async_) => {
-                    println!("Adding exec async record: {:?}", async_);
+        for msg in mi_msgs {
+            match msg {
+                mi::ResultOrOOB::Result(result) => {
                     inner.gdb_w.insert_line(&format!(
-                        "<span color=\"#505B70\">[EXEC]</span> {}",
-                        render_async_record(async_)
+                        "<span color=\"#6BDEB1\">[RESULT]</span> {}",
+                        render_result(&result)
                     ));
                 }
-                mi::OutOfBandResult::StatusAsyncRecord(async_) => {
-                    println!("Adding status async record: {:?}", async_);
-                    inner.gdb_w.insert_line(&format!(
-                        "<span color=\"#3FBCA6\">[STATUS]</span> {}",
-                        render_async_record(async_)
-                    ));
-                }
-                mi::OutOfBandResult::NotifyAsyncRecord(async_) => {
-                    println!("Adding notify async record: {:?}", async_);
-                    inner.gdb_w.insert_line(&format!(
-                        "<span color=\"#CBCE79\">[NOTIFY]</span> {}",
-                        render_async_record(async_)
-                    ));
-                }
-                mi::OutOfBandResult::ConsoleStreamRecord(str) => {
-                    println!("Adding console stream record: {:?}", str);
-                    inner.gdb_w.insert_line(&format!(
-                        "<span color=\"#A1D490\">[CONSOLE]</span> {}",
-                        escape_brackets(&str)
-                    ));
-                }
-                mi::OutOfBandResult::TargetStreamRecord(str) => {
-                    println!("Adding target stream record: {:?}", str);
-                    inner.gdb_w.insert_line(&format!(
-                        "<span color=\"#90C3D4\">[TARGET]</span> {}",
-                        escape_brackets(&str)
-                    ));
-                }
-                mi::OutOfBandResult::LogStreamRecord(str) => {
-                    println!("Adding log stream record: {:?}", str);
-                    inner.gdb_w.insert_line(&format!(
-                        "<span color=\"#D4A190\">[LOG]</span> {}",
-                        escape_brackets(&str)
-                    ));
-                }
+                mi::ResultOrOOB::OOB(oob) => match oob {
+                    mi::OutOfBandResult::ExecAsyncRecord(async_) => {
+                        inner.gdb_w.insert_line(&format!(
+                            "<span color=\"#505B70\">[EXEC]</span> {}",
+                            render_async_record(async_)
+                        ));
+                    }
+                    mi::OutOfBandResult::StatusAsyncRecord(async_) => {
+                        inner.gdb_w.insert_line(&format!(
+                            "<span color=\"#3FBCA6\">[STATUS]</span> {}",
+                            render_async_record(async_)
+                        ));
+                    }
+                    mi::OutOfBandResult::NotifyAsyncRecord(async_) => {
+                        inner.gdb_w.insert_line(&format!(
+                            "<span color=\"#CBCE79\">[NOTIFY]</span> {}",
+                            render_async_record(async_)
+                        ));
+                    }
+                    mi::OutOfBandResult::ConsoleStreamRecord(str) => {
+                        inner.gdb_w.insert_line(&format!(
+                            "<span color=\"#A1D490\">[CONSOLE]</span> {}",
+                            escape_brackets(&str)
+                        ));
+                    }
+                    mi::OutOfBandResult::TargetStreamRecord(str) => {
+                        inner.gdb_w.insert_line(&format!(
+                            "<span color=\"#90C3D4\">[TARGET]</span> {}",
+                            escape_brackets(&str)
+                        ));
+                    }
+                    mi::OutOfBandResult::LogStreamRecord(str) => {
+                        inner.gdb_w.insert_line(&format!(
+                            "<span color=\"#D4A190\">[LOG]</span> {}",
+                            escape_brackets(&str)
+                        ));
+                    }
+                },
             }
         }
-
-        if let Some(result) = mi_msg.result {
-            println!("Adding result: {:?}", result);
-            inner.gdb_w.insert_line(&format!(
-                "<span color=\"#6BDEB1\">[RESULT]</span> {}",
-                render_result(&result)
-            ));
-        }
-
         gtk::Continue(true)
     }
 
     pub fn send_mi_msg(&self, msg: String) {
-        println!("Sending mi msg: {}", msg);
         let mut inner = self.0.borrow_mut();
         match inner.gdb.as_mut() {
             None => {

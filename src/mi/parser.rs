@@ -1,5 +1,7 @@
 //! Parsing GDB-mi output to the AST defined in `mi::output_syntax`.
 
+// https://sourceware.org/gdb/onlinedocs/gdb/GDB_002fMI-Output-Syntax.html#GDB_002fMI-Output-Syntax
+
 use super::output_syntax::*;
 
 use std::collections::HashMap;
@@ -12,27 +14,39 @@ macro_rules! guard {
     };
 }
 
-// All parsers return result + unconsumed input.
+// All parsers return result + unconsumed input, except `parse_output` becuase it tries to parse
+// the whole input.
 
 // [26/01/2019] This code makes me want to kill myself
 
-pub fn parse_output(s: &str) -> Option<(Output, &str)> {
-    let (out_of_band, mut s) = parse_out_of_bands(s);
-    let result = match parse_result_record(s) {
-        None => None,
-        Some((result, s_)) => {
-            s = s_;
-            Some(result)
+// [29/01/2019] gdb-mi documentation is wrong about the syntax: a single message may contain
+// out-of-band records, then a result, then more out-of-band records. It's also wrong about the
+// message terminator ("(gdb)\n" etc.). So we don't expect to see a terminator here, and we parse
+// any ordering of out-of-band results and normal results (e.g. we accept [oob, normal, oob,
+// normal] etc.).
+
+pub fn parse_output(mut s: &str) -> Option<Output> {
+    let mut ret = vec![];
+
+    while !s.is_empty() {
+        match parse_out_of_band(s) {
+            None => match parse_result_record(s) {
+                None => {
+                    return None;
+                }
+                Some((res, s_)) => {
+                    ret.push(ResultOrOOB::Result(res));
+                    s = s_;
+                }
+            },
+            Some((oob, s_)) => {
+                ret.push(ResultOrOOB::OOB(oob));
+                s = s_;
+            }
         }
-    };
-    guard!(s == "(gdb) \n");
-    Some((
-        Output {
-            out_of_band,
-            result,
-        },
-        &s["(gdb) \n".len()..],
-    ))
+    }
+
+    Some(ret)
 }
 
 fn parse_out_of_bands(mut s: &str) -> (Vec<OutOfBandResult>, &str) {
@@ -53,6 +67,15 @@ fn parse_out_of_bands(mut s: &str) -> (Vec<OutOfBandResult>, &str) {
     (ret, s)
 }
 
+// out-of-band-record → async-record | stream-record
+// async-record → exec-async-output | status-async-output | notify-async-output
+// exec-async-output → [ token ] "*" async-output nl
+// status-async-output → [ token ] "+" async-output nl
+// notify-async-output → [ token ] "=" async-output nl
+// stream-record → console-stream-output | target-stream-output | log-stream-output
+// console-stream-output → "~" c-string nl
+// target-stream-output → "@" c-string nl
+// log-stream-output → "&" c-string nl
 fn parse_out_of_band(s: &str) -> Option<(OutOfBandResult, &str)> {
     // TODO: Would be good to reduce duplication below
     match parse_token(s) {
@@ -478,21 +501,17 @@ fn parse_out_of_band_tests() {
 
 #[test]
 fn parse_output_tests() {
-    let out = Output {
-        out_of_band: vec![OutOfBandResult::NotifyAsyncRecord(AsyncRecord {
+    let out = vec![ResultOrOOB::OOB(OutOfBandResult::NotifyAsyncRecord(
+        AsyncRecord {
             token: None,
             class: "thread-group-added".to_string(),
             results: vec![("id".to_string(), Value::Const("i1".to_string()))],
-        })],
-        result: None,
-    };
-    assert_eq!(
-        parse_output("=thread-group-added,id=\"i1\"\n(gdb) \n"),
-        Some((out, ""))
-    );
+        },
+    ))];
+    assert_eq!(parse_output("=thread-group-added,id=\"i1\"\n"), Some(out));
 
-    let out = Output {
-        out_of_band: vec![OutOfBandResult::NotifyAsyncRecord(AsyncRecord {
+    let out = vec![ResultOrOOB::OOB(OutOfBandResult::NotifyAsyncRecord(
+        AsyncRecord {
             token: None,
             class: "cmd-param-changed".to_string(),
             results: vec![
@@ -502,12 +521,11 @@ fn parse_output_tests() {
                 ),
                 ("value".to_string(), Value::Const("on".to_string())),
             ],
-        })],
-        result: None,
-    };
+        },
+    ))];
     assert_eq!(
-        parse_output("=cmd-param-changed,param=\"history save\",value=\"on\"\n(gdb) \n"),
-        Some((out, ""))
+        parse_output("=cmd-param-changed,param=\"history save\",value=\"on\"\n"),
+        Some(out)
     );
 
     let s = "=thread-group-added,id=\"i1\"\n\
@@ -516,26 +534,24 @@ fn parse_output_tests() {
              =cmd-param-changed,param=\"print pretty\",value=\"on\"\n\
              =cmd-param-changed,param=\"print array-indexes\",value=\"on\"\n\
              =cmd-param-changed,param=\"python print-stack\",value=\"full\"\n\
-             =cmd-param-changed,param=\"pagination\",value=\"off\"\n\
-             (gdb) \n";
-    assert_eq!(parse_output(s).map(|t| t.1), Some(""));
+             =cmd-param-changed,param=\"pagination\",value=\"off\"\n";
+    assert_eq!(parse_output(s).map(|r| r.len()), Some(7));
 
-    let s = "~\"Reading symbols from gc_test...\"\n\
-             (gdb) \n";
-    let out = Output {
-        out_of_band: vec![OutOfBandResult::ConsoleStreamRecord(
-            "Reading symbols from gc_test...".to_string(),
-        )],
-        result: None,
-    };
-    assert_eq!(parse_output(s), Some((out, "")));
+    let s = "~\"Reading symbols from gc_test...\"\n";
+    let out = vec![ResultOrOOB::OOB(OutOfBandResult::ConsoleStreamRecord(
+        "Reading symbols from gc_test...".to_string(),
+    ))];
+    assert_eq!(parse_output(s), Some(out));
 
-    let s = "~\"\\\"\"\n(gdb) \n";
-    assert_eq!(parse_output(s).map(|t| t.1), Some(""));
+    let s = "~\"\\\"\"\n";
+    assert_eq!(parse_output(s).map(|t| t.len()), Some(1));
 
-    let s = "^done\n(gdb) \n";
-    assert_eq!(parse_output(s).map(|t| t.1), Some(""));
+    let s = "^done\n";
+    assert_eq!(parse_output(s).map(|t| t.len()), Some(1));
 
-    let s = "^error,msg=\"Undefined command: \\\"halp\\\".  Try \\\"help\\\".\"\n(gdb) \n";
-    assert_eq!(parse_output(s).map(|t| t.1), Some(""));
+    let s = "^error,msg=\"Undefined command: \\\"halp\\\".  Try \\\"help\\\".\"\n";
+    assert_eq!(parse_output(s).map(|t| t.len()), Some(1));
+
+    let s = "^running\n*running,thread-id=\"all\"\n";
+    assert_eq!(parse_output(s).map(|t| t.len()), Some(2));
 }

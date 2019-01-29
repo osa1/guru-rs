@@ -30,9 +30,13 @@ fn main() {
 fn build_ui(gtk_app: &gtk::Application) {
     let mut app = app::App::new(gtk_app);
 
+    // Currently all args are considered gdb args and passed to gdb as --args, e.g.
+    // $ gdb --args <program args>
+    let gdb_args = std::env::args().into_iter().collect::<Vec<String>>();
+
     // Connect to gdb with no args in a few seconds, for testing
     gtk::timeout_add_seconds(3, move || {
-        app.gdb_connect(vec![]);
+        app.gdb_connect(&gdb_args);
         gtk::Continue(false)
     });
 }

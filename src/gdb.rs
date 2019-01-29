@@ -23,9 +23,9 @@ impl GDB {
     /// ```
     /// A spawns that reads gdb stdout and sends parsed mi messages to `msg_sender` will be
     /// spawned.
-    pub fn with_args(mut args: Vec<String>, mut msg_sender: Sender<mi::Output>) -> GDB {
-        // args.insert(0, "--args".to_string());
-        args.push("-i=mi".to_string());
+    pub fn with_args(mut args0: &[String], mut msg_sender: Sender<mi::Output>) -> GDB {
+        let mut args = vec!["-i=mi".to_string(), "--args".to_string()];
+        args.extend_from_slice(args0);
         let mut process = Command::new("gdb")
             .args(args.into_iter())
             .stdin(Stdio::piped())
@@ -87,17 +87,15 @@ fn message_handler(stdout: &mut ChildStdout, msg_sender: &mut Sender<mi::Output>
                 continue;
             }
             Some(idx) => {
-                let mut idx = idx + MI_MSG_SEP.len();
                 let msg = &msg_str[0..idx];
                 match mi::parse_output(msg) {
                     None => {
                         println!("Can't parse mi message: {:?}", msg);
                     }
-                    Some((mi_msg, rest)) => {
-                        assert!(rest.is_empty());
-                        println!("mi message parsed: {:?}", mi_msg);
-                        msg_sender.send(mi_msg);
-                        msg_bytes.drain(0..idx);
+                    Some(mi_msgs) => {
+                        // println!("mi message parsed: {:?}", mi_msgs);
+                        msg_sender.send(mi_msgs);
+                        msg_bytes.drain(0..idx + MI_MSG_SEP.len());
                     }
                 }
             }
