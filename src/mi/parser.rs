@@ -332,17 +332,15 @@ pub fn parse_value(s: &str) -> Option<(Value, &str)> {
             match parse_value(s) {
                 None => {
                     // Should be a result list
-                    let mut results = HashMap::new();
-                    let ((var0, val0), s) = parse_result(s)?;
-                    assert!(!results.contains_key(&var0));
-                    results.insert(var0, val0);
+                    let mut results = vec![];
+                    let (result0, s) = parse_result(s)?;
+                    results.push(result0);
                     let mut s = s;
                     loop {
                         let c = s.chars().next()?;
                         if c == ',' {
-                            let ((var, val), s_) = parse_result(&s[c.len_utf8()..])?;
-                            assert!(!results.contains_key(&var));
-                            results.insert(var, val);
+                            let (result, s_) = parse_result(&s[c.len_utf8()..])?;
+                            results.push(result);
                             s = s_;
                         } else if c == ']' {
                             return Some((Value::ResultList(results), &s[c.len_utf8()..]));

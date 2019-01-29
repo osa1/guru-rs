@@ -7,7 +7,9 @@ pub enum Value {
     Const(String),
     Tuple(HashMap<Variable, Value>),
     ValueList(Vec<Value>),
-    ResultList(HashMap<Variable, Value>),
+    // NOTE: Do not make this a HashMap<Variable, Value>! A result list may contain same variable
+    // multiple times.
+    ResultList(Vec<(Variable, Value)>),
 }
 
 impl Value {
@@ -25,7 +27,7 @@ impl Value {
         }
     }
 
-    pub fn get_result_list(self) -> Option<HashMap<Variable, Value>> {
+    pub fn get_result_list(self) -> Option<Vec<(Variable, Value)>> {
         match self {
             Value::ResultList(v) => Some(v),
             _ => None,
