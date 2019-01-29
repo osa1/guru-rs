@@ -7,7 +7,7 @@ pub enum Value {
     Const(String),
     Tuple(HashMap<Variable, Value>),
     ValueList(Vec<Value>),
-    ResultList(Vec<(Variable, Value)>),
+    ResultList(HashMap<Variable, Value>),
 }
 
 impl Value {
@@ -25,7 +25,7 @@ impl Value {
         }
     }
 
-    pub fn get_result_list(self) -> Option<Vec<(Variable, Value)>> {
+    pub fn get_result_list(self) -> Option<HashMap<Variable, Value>> {
         match self {
             Value::ResultList(v) => Some(v),
             _ => None,
@@ -47,7 +47,7 @@ pub enum ResultOrOOB {
 pub struct Result {
     pub token: Option<Token>,
     pub class: ResultClass,
-    pub results: Vec<(Variable, Value)>,
+    pub results: HashMap<Variable, Value>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -73,5 +73,5 @@ pub enum OutOfBandResult {
 pub struct AsyncRecord {
     pub token: Option<Token>,
     pub class: String,
-    pub results: Vec<(Variable, Value)>,
+    pub results: HashMap<Variable, Value>,
 }

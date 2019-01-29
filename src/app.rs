@@ -1,5 +1,6 @@
 use crate::gdb;
 use crate::mi;
+use crate::parsers;
 use crate::widgets;
 
 use gio::prelude::*;
@@ -90,53 +91,90 @@ impl App {
         let inner = self.0.borrow();
         for msg in mi_msgs {
             match msg {
-                mi::ResultOrOOB::Result(result) => {
-                    inner.gdb_w.insert_line(&format!(
-                        "<span color=\"#6BDEB1\">[RESULT]</span> {}",
-                        render_result(&result)
-                    ));
-                }
-                mi::ResultOrOOB::OOB(oob) => match oob {
-                    mi::OutOfBandResult::ExecAsyncRecord(async_) => {
-                        inner.gdb_w.insert_line(&format!(
-                            "<span color=\"#505B70\">[EXEC]</span> {}",
-                            render_async_record(async_)
-                        ));
-                    }
-                    mi::OutOfBandResult::StatusAsyncRecord(async_) => {
-                        inner.gdb_w.insert_line(&format!(
-                            "<span color=\"#3FBCA6\">[STATUS]</span> {}",
-                            render_async_record(async_)
-                        ));
-                    }
-                    mi::OutOfBandResult::NotifyAsyncRecord(async_) => {
-                        inner.gdb_w.insert_line(&format!(
-                            "<span color=\"#CBCE79\">[NOTIFY]</span> {}",
-                            render_async_record(async_)
-                        ));
-                    }
-                    mi::OutOfBandResult::ConsoleStreamRecord(str) => {
-                        inner.gdb_w.insert_line(&format!(
-                            "<span color=\"#A1D490\">[CONSOLE]</span> {}",
-                            escape_brackets(&str)
-                        ));
-                    }
-                    mi::OutOfBandResult::TargetStreamRecord(str) => {
-                        inner.gdb_w.insert_line(&format!(
-                            "<span color=\"#90C3D4\">[TARGET]</span> {}",
-                            escape_brackets(&str)
-                        ));
-                    }
-                    mi::OutOfBandResult::LogStreamRecord(str) => {
-                        inner.gdb_w.insert_line(&format!(
-                            "<span color=\"#D4A190\">[LOG]</span> {}",
-                            escape_brackets(&str)
-                        ));
-                    }
-                },
+                mi::ResultOrOOB::Result(result) => self.mi_result_recvd(result),
+                mi::ResultOrOOB::OOB(oob) => self.mi_oob_recvd(oob),
             }
         }
         gtk::Continue(true)
+    }
+
+    fn mi_result_recvd(&self, result: mi::Result) {
+        let inner = self.0.borrow();
+        inner.gdb_w.insert_line(&format!(
+            "<span color=\"#6BDEB1\">[RESULT]</span> {}",
+            render_result(&result)
+        ));
+    }
+
+    fn mi_oob_recvd(&self, oob: mi::OutOfBandResult) {
+        let inner = self.0.borrow();
+        match oob {
+            mi::OutOfBandResult::ExecAsyncRecord(async_) => {
+                inner.gdb_w.insert_line(&format!(
+                    "<span color=\"#505B70\">[EXEC]</span> {}",
+                    render_async_record(&async_)
+                ));
+                self.handle_async_result(async_);
+            }
+            mi::OutOfBandResult::StatusAsyncRecord(async_) => {
+                inner.gdb_w.insert_line(&format!(
+                    "<span color=\"#3FBCA6\">[STATUS]</span> {}",
+                    render_async_record(&async_)
+                ));
+                self.handle_async_result(async_);
+            }
+            mi::OutOfBandResult::NotifyAsyncRecord(async_) => {
+                inner.gdb_w.insert_line(&format!(
+                    "<span color=\"#CBCE79\">[NOTIFY]</span> {}",
+                    render_async_record(&async_)
+                ));
+                self.handle_async_result(async_);
+            }
+            mi::OutOfBandResult::ConsoleStreamRecord(str) => {
+                inner.gdb_w.insert_line(&format!(
+                    "<span color=\"#A1D490\">[CONSOLE]</span> {}",
+                    escape_brackets(&str)
+                ));
+            }
+            mi::OutOfBandResult::TargetStreamRecord(str) => {
+                inner.gdb_w.insert_line(&format!(
+                    "<span color=\"#90C3D4\">[TARGET]</span> {}",
+                    escape_brackets(&str)
+                ));
+            }
+            mi::OutOfBandResult::LogStreamRecord(str) => {
+                inner.gdb_w.insert_line(&format!(
+                    "<span color=\"#D4A190\">[LOG]</span> {}",
+                    escape_brackets(&str)
+                ));
+            }
+        }
+    }
+
+    fn handle_async_result(&self, mut async_: mi::AsyncRecord) {
+        // TODO find a better name
+        macro_rules! some {
+            ( $x:expr ) => {
+                if let Some(ret) = $x {
+                    ret
+                } else {
+                    return;
+                }
+            }
+        };
+
+        match async_.class.as_str() {
+            "breakpoint-created" => {
+                let bkpt = some!(async_.results.remove("bkpt"));
+                let bkpt = some!(bkpt.get_tuple());
+                let bkpt = some!(parsers::parse_breakpoint(bkpt));
+                let inner = self.0.borrow();
+                inner.breakpoints_w.add_breakpoint(&bkpt);
+            }
+            _ => {
+
+            }
+        }
     }
 
     pub fn send_mi_msg(&self, msg: String) {
@@ -155,11 +193,11 @@ impl App {
     }
 }
 
-fn render_async_record(async_: mi::AsyncRecord) -> String {
+fn render_async_record(async_: &mi::AsyncRecord) -> String {
     let mut ret = String::new();
     ret.push_str(&format!("<b>{}</b> ", async_.class));
     let mut first = true;
-    for (var, val) in async_.results {
+    for (var, val) in async_.results.iter() {
         if !first {
             ret.push_str(", ");
         } else {

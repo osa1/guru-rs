@@ -167,13 +167,14 @@ fn parse_result_record(mut s: &str) -> Option<(Result, &str)> {
         return None;
     };
 
-    let mut results = vec![];
+    let mut results = HashMap::new();
     loop {
         let c = s.chars().next()?;
         if c == ',' {
             s = &s[c.len_utf8()..];
-            let (result, s_) = parse_result(s)?;
-            results.push(result);
+            let ((var, val), s_) = parse_result(s)?;
+            assert!(!results.contains_key(&var));
+            results.insert(var, val);
             s = s_;
         } else if c == '\n' {
             let s = expect_newline(s)?;
@@ -222,7 +223,7 @@ fn parse_async_record(mut s: &str) -> Option<(AsyncRecord, &str)> {
                     AsyncRecord {
                         token: None,
                         class: class,
-                        results: vec![],
+                        results: HashMap::new(),
                     },
                     s,
                 ));
@@ -236,11 +237,12 @@ fn parse_async_record(mut s: &str) -> Option<(AsyncRecord, &str)> {
         }
         class
     };
-    let mut results = vec![];
+    let mut results = HashMap::new();
     while s.chars().next() == Some(',') {
-        let (result, s_) = parse_result(&s[','.len_utf8()..])?;
+        let ((var, val), s_) = parse_result(&s[','.len_utf8()..])?;
         s = s_;
-        results.push(result);
+        assert!(!results.contains_key(&var));
+        results.insert(var, val);
     }
     let s = expect_newline(s)?;
     Some((
@@ -330,15 +332,17 @@ pub fn parse_value(s: &str) -> Option<(Value, &str)> {
             match parse_value(s) {
                 None => {
                     // Should be a result list
-                    let mut results = vec![];
-                    let (result0, s) = parse_result(s)?;
-                    results.push(result0);
+                    let mut results = HashMap::new();
+                    let ((var0, val0), s) = parse_result(s)?;
+                    assert!(!results.contains_key(&var0));
+                    results.insert(var0, val0);
                     let mut s = s;
                     loop {
                         let c = s.chars().next()?;
                         if c == ',' {
-                            let (result, s_) = parse_result(&s[c.len_utf8()..])?;
-                            results.push(result);
+                            let ((var, val), s_) = parse_result(&s[c.len_utf8()..])?;
+                            assert!(!results.contains_key(&var));
+                            results.insert(var, val);
                             s = s_;
                         } else if c == ']' {
                             return Some((Value::ResultList(results), &s[c.len_utf8()..]));
