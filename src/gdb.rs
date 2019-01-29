@@ -80,10 +80,9 @@ fn message_handler(stdout: &mut ChildStdout, msg_sender: &mut Sender<mi::Output>
             }
             Ok(str) => str,
         };
-        println!("Current message buffer:\n{:?}", msg_str);
         match msg_str.find(MI_MSG_SEP) {
             None => {
-                println!("Can't find MI_MSG_SEP");
+                // println!("Can't find MI_MSG_SEP: {:?}", msg_str);
                 continue;
             }
             Some(idx) => {
