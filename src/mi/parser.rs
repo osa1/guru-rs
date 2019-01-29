@@ -162,6 +162,7 @@ fn parse_result_record(mut s: &str) -> Option<(Result, &str)> {
     loop {
         let c = s.chars().next()?;
         if c == ',' {
+            s = &s[c.len_utf8()..];
             let (result, s_) = parse_result(s)?;
             results.push(result);
             s = s_;
@@ -533,5 +534,8 @@ fn parse_output_tests() {
     assert_eq!(parse_output(s).map(|t| t.1), Some(""));
 
     let s = "^done\n(gdb) \n";
+    assert_eq!(parse_output(s).map(|t| t.1), Some(""));
+
+    let s = "^error,msg=\"Undefined command: \\\"halp\\\".  Try \\\"help\\\".\"\n(gdb) \n";
     assert_eq!(parse_output(s).map(|t| t.1), Some(""));
 }
