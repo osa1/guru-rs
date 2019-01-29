@@ -135,6 +135,14 @@ impl App {
             }
         }
 
+        if let Some(result) = mi_msg.result {
+            println!("Adding result: {:?}", result);
+            inner.gdb_w.insert_line(&format!(
+                "<span color=\"#6BDEB1\">[RESULT]</span> {}",
+                render_result(&result)
+            ));
+        }
+
         gtk::Continue(true)
     }
 
@@ -213,6 +221,30 @@ fn render_value(val: &mi::Value) -> String {
             ret
         }
     }
+}
+
+fn render_result(result: &mi::Result) -> String {
+    let mut ret = String::new();
+    ret.push_str(match &result.class {
+        Done => "Done",
+        Running => "Running",
+        Connected => "Connected",
+        Error => "Error",
+        Exit => "Exit",
+    });
+    if result.results.is_empty() {
+        return ret;
+    }
+    ret.push_str(": ");
+    let mut first = true;
+    for (var, val) in result.results.iter() {
+        if !first {
+            ret.push_str(", ");
+        }
+        first = false;
+        ret.push_str(&format!("{} = {}", var, render_value(val)));
+    }
+    ret
 }
 
 /// Escape '<' and '>' characters in the string so that they don't look like pango tags when adding
