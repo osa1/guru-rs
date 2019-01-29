@@ -5,7 +5,11 @@ use crate::widgets;
 use gio::prelude::*;
 use gtk::prelude::*;
 
-pub struct App {
+use std::cell::{RefCell, RefMut};
+use std::io::Write;
+use std::rc::Rc;
+
+struct AppInner {
     // Widgets
     threads_w: widgets::ThreadsW,
     breakpoints_w: widgets::BreakpointsW,
@@ -13,6 +17,9 @@ pub struct App {
     // GDB driver
     gdb: Option<gdb::GDB>,
 }
+
+#[derive(Clone)]
+pub struct App(Rc<RefCell<AppInner>>);
 
 impl App {
     pub fn new(gtk_app: &gtk::Application) -> App {
@@ -48,59 +55,79 @@ impl App {
 
         window.show_all();
 
-        App {
+        let app = App(Rc::new(RefCell::new(AppInner {
             threads_w,
             breakpoints_w,
             gdb_w,
             gdb: None,
+        })));
+
+        {
+            let app1 = app.clone();
+            app.0
+                .borrow_mut()
+                .gdb_w
+                .connect_text_entered(move |msg| app1.send_mi_msg(msg));
         }
+
+        app
     }
 
-    pub fn set_gdb(&mut self, gdb: gdb::GDB) {
-        self.gdb = Some(gdb);
+    pub fn gdb_connect(&self, args: Vec<String>) {
+        let (mut send, mut recv) = glib::MainContext::channel(glib::source::PRIORITY_DEFAULT);
+        let gdb = gdb::GDB::with_args(args, send); // TODO errors
+        let main_context = glib::MainContext::default();
+        {
+            let app = self.clone();
+            recv.attach(&main_context, move |msg| app.mi_msg_recvd(msg));
+        }
+        // TODO error checking
+        self.0.borrow_mut().gdb = Some(gdb);
+        self.0.borrow().gdb_w.enter_connected_state();
     }
 
-    pub fn mi_msg_recvd(&mut self, mi_msg: mi::Output) -> gtk::Continue {
+    pub fn mi_msg_recvd(&self, mi_msg: mi::Output) -> gtk::Continue {
+        let inner = self.0.borrow();
         for oob in mi_msg.out_of_band {
             match oob {
                 mi::OutOfBandResult::ExecAsyncRecord(async_) => {
                     println!("Adding exec async record: {:?}", async_);
-                    self.gdb_w.insert_line(&format!(
+                    inner.gdb_w.insert_line(&format!(
                         "<span color=\"#505B70\">[EXEC]</span> {}",
                         render_async_record(async_)
                     ));
                 }
                 mi::OutOfBandResult::StatusAsyncRecord(async_) => {
                     println!("Adding status async record: {:?}", async_);
-                    self.gdb_w.insert_line(&format!(
+                    inner.gdb_w.insert_line(&format!(
                         "<span color=\"#3FBCA6\">[STATUS]</span> {}",
                         render_async_record(async_)
                     ));
                 }
                 mi::OutOfBandResult::NotifyAsyncRecord(async_) => {
                     println!("Adding notify async record: {:?}", async_);
-                    self.gdb_w.insert_line(&format!(
+                    inner.gdb_w.insert_line(&format!(
                         "<span color=\"#CBCE79\">[NOTIFY]</span> {}",
                         render_async_record(async_)
                     ));
                 }
                 mi::OutOfBandResult::ConsoleStreamRecord(str) => {
                     println!("Adding console stream record: {:?}", str);
-                    self.gdb_w.insert_line(&format!(
+                    inner.gdb_w.insert_line(&format!(
                         "<span color=\"#A1D490\">[CONSOLE]</span> {}",
                         escape_brackets(&str)
                     ));
                 }
                 mi::OutOfBandResult::TargetStreamRecord(str) => {
                     println!("Adding target stream record: {:?}", str);
-                    self.gdb_w.insert_line(&format!(
+                    inner.gdb_w.insert_line(&format!(
                         "<span color=\"#90C3D4\">[TARGET]</span> {}",
                         escape_brackets(&str)
                     ));
                 }
                 mi::OutOfBandResult::LogStreamRecord(str) => {
                     println!("Adding log stream record: {:?}", str);
-                    self.gdb_w.insert_line(&format!(
+                    inner.gdb_w.insert_line(&format!(
                         "<span color=\"#D4A190\">[LOG]</span> {}",
                         escape_brackets(&str)
                     ));
@@ -109,6 +136,22 @@ impl App {
         }
 
         gtk::Continue(true)
+    }
+
+    pub fn send_mi_msg(&self, msg: String) {
+        println!("Sending mi msg: {}", msg);
+        let mut inner = self.0.borrow_mut();
+        match inner.gdb.as_mut() {
+            None => {
+                // This should be a bug as the entry should be disabled when we're not connected
+                println!("Can't send mi msg! GDB not available!");
+            }
+            Some(mut gdb) => {
+                writeln!(gdb.stdin(), "{}", msg).unwrap();
+                inner.gdb_w.insert_line(&format!(">>> {}", msg));
+                // let _ = gdb.stdin().flush();
+            }
+        }
     }
 }
 

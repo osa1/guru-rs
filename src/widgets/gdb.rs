@@ -15,6 +15,7 @@ pub struct GdbW {
     // expander -> box -> [ scrolled -> text view, entry ]
     widget: gtk::Expander,
     text_view: gtk::TextView,
+    entry: gtk::Entry,
 }
 
 // CSS for the entry
@@ -53,6 +54,7 @@ impl GdbW {
         let entry = gtk::Entry::new();
         entry.set_vexpand(false);
         entry.set_placeholder_text("(enter gdb or gdb-mi commands here)");
+        entry.set_sensitive(false);
         box_.pack_start(&entry, false, false, 0);
 
         //
@@ -73,6 +75,7 @@ impl GdbW {
         GdbW {
             widget: expander,
             text_view,
+            entry,
         }
     }
 
@@ -88,12 +91,26 @@ impl GdbW {
             .get_buffer()
             .unwrap()
             .insert_markup(&mut end_iter, str);
-        if (!str.is_empty() && &str[str.len() - 1..str.len()] != "\n") {
+        if !str.is_empty() && &str[str.len() - 1..str.len()] != "\n" {
             let mut end_iter = self.text_view.get_buffer().unwrap().get_end_iter();
             self.text_view
                 .get_buffer()
                 .unwrap()
                 .insert_markup(&mut end_iter, "\n");
         }
+    }
+
+    pub fn connect_text_entered<F: Fn(String) + 'static>(&self, f: F) {
+        self.entry.connect_activate(move |entry| {
+            if let Some(text) = entry.get_text() {
+                let text = text.as_str().to_string();
+                entry.set_text("");
+                f(text);
+            }
+        });
+    }
+
+    pub fn enter_connected_state(&self) {
+        self.entry.set_sensitive(true);
     }
 }

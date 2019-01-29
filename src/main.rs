@@ -28,15 +28,11 @@ fn main() {
 }
 
 fn build_ui(gtk_app: &gtk::Application) {
-    let mut app = Rc::new(RefCell::new(app::App::new(gtk_app)));
+    let mut app = app::App::new(gtk_app);
 
-    // Create gdb driver
-    let (mut send, mut recv) = glib::MainContext::channel(glib::source::PRIORITY_DEFAULT);
-    let gdb_driver = gdb::GDB::with_args(vec![], send);
-
-    let main_context = glib::MainContext::default();
-    {
-        let app = app.clone();
-        recv.attach(&main_context, move |msg| app.borrow_mut().mi_msg_recvd(msg));
-    }
+    // Connect to gdb with no args in a few seconds, for testing
+    gtk::timeout_add_seconds(3, move || {
+        app.gdb_connect(vec![]);
+        gtk::Continue(false)
+    });
 }

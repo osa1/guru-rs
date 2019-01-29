@@ -44,10 +44,8 @@ impl GDB {
         }
     }
 
-    /// Get stdin of the spawned gdb process. Note that this moves the stdin so this returns `None`
-    /// after the first call.
-    pub fn take_stdin(&mut self) -> Option<ChildStdin> {
-        self.process.stdin.take()
+    pub fn stdin(&mut self) -> &mut ChildStdin {
+        self.process.stdin.as_mut().unwrap()
     }
 }
 
