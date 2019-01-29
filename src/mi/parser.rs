@@ -397,6 +397,8 @@ fn parse_string(mut s: &str) -> Option<(String, &str)> {
                 output.push('\n');
             } else if c == '"' {
                 output.push('"');
+            } else if c == 't' {
+                output.push('\t');
             } else {
                 println!("Unknown escape character: {}", c);
                 output.push(c);
