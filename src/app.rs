@@ -63,9 +63,27 @@ impl App {
     pub fn mi_msg_recvd(&mut self, mi_msg: mi::Output) -> gtk::Continue {
         for oob in mi_msg.out_of_band {
             match oob {
-                mi::OutOfBandResult::ExecAsyncRecord(async_) => { /* TODO */ }
-                mi::OutOfBandResult::StatusAsyncRecord(async_) => { /* TODO */ }
-                mi::OutOfBandResult::NotifyAsyncRecord(async_) => { /* TODO */ }
+                mi::OutOfBandResult::ExecAsyncRecord(async_) => {
+                    println!("Adding exec async record: {:?}", async_);
+                    self.gdb_w.insert_line(&format!(
+                        "<span color=\"#505B70\">[EXEC]</span> {}",
+                        render_async_record(async_)
+                    ));
+                }
+                mi::OutOfBandResult::StatusAsyncRecord(async_) => {
+                    println!("Adding status async record: {:?}", async_);
+                    self.gdb_w.insert_line(&format!(
+                        "<span color=\"#3FBCA6\">[STATUS]</span> {}",
+                        render_async_record(async_)
+                    ));
+                }
+                mi::OutOfBandResult::NotifyAsyncRecord(async_) => {
+                    println!("Adding notify async record: {:?}", async_);
+                    self.gdb_w.insert_line(&format!(
+                        "<span color=\"#CBCE79\">[NOTIFY]</span> {}",
+                        render_async_record(async_)
+                    ));
+                }
                 mi::OutOfBandResult::ConsoleStreamRecord(str) => {
                     println!("Adding console stream record: {:?}", str);
                     self.gdb_w.insert_line(&format!(
@@ -91,6 +109,66 @@ impl App {
         }
 
         gtk::Continue(true)
+    }
+}
+
+fn render_async_record(async_: mi::AsyncRecord) -> String {
+    let mut ret = String::new();
+    ret.push_str(&format!("<b>{}</b> ", async_.class));
+    let mut first = true;
+    for (var, val) in async_.results {
+        if !first {
+            ret.push_str(", ");
+        } else {
+            first = false;
+        }
+        ret.push_str(&format!("{} = {}", var, render_value(&val)));
+    }
+    ret
+}
+
+fn render_value(val: &mi::Value) -> String {
+    match val {
+        mi::Value::Const(str) => escape_brackets(&str),
+        mi::Value::Tuple(map) => {
+            let mut ret = "{".to_string();
+            let mut first = true;
+            for (k, v) in map.iter() {
+                if !first {
+                    ret.push_str(", ");
+                } else {
+                    first = false;
+                }
+                ret.push_str(&format!("{} = {}", k, render_value(v)));
+            }
+            ret
+        }
+        mi::Value::ValueList(vals) => {
+            let mut ret = "[".to_string();
+            let mut first = true;
+            for val in vals.iter() {
+                if !first {
+                    ret.push_str(", ");
+                } else {
+                    first = false;
+                }
+                ret.push_str(&render_value(val));
+            }
+            ret
+        }
+        mi::Value::ResultList(results) => {
+            let mut ret = "[".to_string();
+            let mut first = true;
+            for (k, v) in results.iter() {
+                if !first {
+                    ret.push_str(", ");
+                } else {
+                    first = false;
+                }
+                ret.push_str(&format!("{} = {}", k, render_value(v)));
+            }
+            ret
+        }
     }
 }
 
