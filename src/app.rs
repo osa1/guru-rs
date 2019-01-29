@@ -184,6 +184,7 @@ fn render_value(val: &mi::Value) -> String {
                 }
                 ret.push_str(&format!("{} = {}", k, render_value(v)));
             }
+            ret.push('}');
             ret
         }
         mi::Value::ValueList(vals) => {
@@ -197,6 +198,7 @@ fn render_value(val: &mi::Value) -> String {
                 }
                 ret.push_str(&render_value(val));
             }
+            ret.push(']');
             ret
         }
         mi::Value::ResultList(results) => {
