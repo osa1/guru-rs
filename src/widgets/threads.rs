@@ -12,12 +12,12 @@ use crate::widgets::backtrace::BacktraceW;
 
 pub struct ThreadsW {
     // scrolled -> box -> [expander -> BacktraceW]
-    widget: gtk::ScrolledWindow,
+    widget: gtk::Box,
     threads: Vec<BacktraceW>,
 }
 
 impl ThreadsW {
-    pub fn new(threads: &[Backtrace]) -> ThreadsW {
+    pub fn new() -> ThreadsW {
         let scrolled = gtk::ScrolledWindow::new(gtk::NONE_ADJUSTMENT, gtk::NONE_ADJUSTMENT);
         scrolled.set_policy(gtk::PolicyType::Automatic, gtk::PolicyType::Automatic);
 
@@ -25,25 +25,28 @@ impl ThreadsW {
         box_.set_baseline_position(gtk::BaselinePosition::Top);
         scrolled.add(&box_);
 
-        let mut ws = Vec::with_capacity(threads.len());
-        for (thread_idx, thread) in threads.iter().enumerate() {
-            let expander = gtk::Expander::new(Some(format!("Thread {}", thread_idx).as_str()));
-            expander.set_expanded(true);
-            let w = BacktraceW::new(thread);
-            expander.add(w.get_widget());
-            box_.pack_start(&expander, false, false, 0);
-            ws.push(w);
-        }
-
         ThreadsW {
-            widget: scrolled,
-            threads: ws,
+            widget: box_,
+            threads: vec![],
         }
     }
 
     /// ONLY USE TO ADD THIS TO CONTAINERS!
     pub fn get_widget(&self) -> &gtk::Widget {
         self.widget.upcast_ref()
+    }
+
+    pub fn set_threads(&mut self, threads: &[Backtrace]) {
+        let mut ws = Vec::with_capacity(threads.len());
+        for (thread_idx, thread) in threads.iter().enumerate() {
+            let expander = gtk::Expander::new(Some(format!("Thread {}", thread_idx).as_str()));
+            expander.set_expanded(true);
+            let w = BacktraceW::new(thread);
+            expander.add(w.get_widget());
+            self.widget.pack_start(&expander, false, false, 0);
+            ws.push(w);
+        }
+        self.threads = ws;
     }
 
     /// Make same columns of different thread views the same. Note that this only works after

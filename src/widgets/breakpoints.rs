@@ -44,7 +44,7 @@ static COL_TYPES: [gtk::Type; NUM_COLS] = [
 static COL_INDICES: [u32; NUM_COLS] = [0, 1, 2, 3, 4, 5];
 
 impl BreakpointsW {
-    pub fn new(breakpoints: &[Breakpoint]) -> BreakpointsW {
+    pub fn new() -> BreakpointsW {
         //
         // Create the store (model)
         //
@@ -90,15 +90,7 @@ impl BreakpointsW {
         add_col("Condition", Cols::Cond, true);
         add_col("Hits", Cols::Hits, false);
 
-        //
-        // Insert the rows
-        //
-
-        let ret = BreakpointsW { view, model };
-        for bp in breakpoints {
-            ret.add_breakpoint(bp);
-        }
-        ret
+        BreakpointsW { view, model }
     }
 
     /// ONLY USE TO ADD THIS TO CONTAINERS!

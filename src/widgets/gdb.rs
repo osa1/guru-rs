@@ -9,10 +9,12 @@ use gtk::prelude::*;
 //   make the text view use same amount of spacing.
 // - When the entry is selected and I press "up" it selects the text view, which is good. But if
 //   I'm at the last line of the text view and press "down" it doesn't select the entry.
+// - Adjust font size with ctrl+mouse scroll.
 
 pub struct GdbW {
     // expander -> box -> [ scrolled -> text view, entry ]
     widget: gtk::Expander,
+    text_view: gtk::TextView,
 }
 
 // CSS for the entry
@@ -68,11 +70,30 @@ impl GdbW {
         );
         entry.get_style_context().add_class("monospace");
 
-        GdbW { widget: expander }
+        GdbW {
+            widget: expander,
+            text_view,
+        }
     }
 
     /// ONLY USE TO ADD THIS TO CONTAINERS!
     pub fn get_widget(&self) -> &gtk::Widget {
         self.widget.upcast_ref()
+    }
+
+    /// NOTE: Inserts a newline if the str doesn't end with a newline.
+    pub fn insert_line(&self, str: &str) {
+        let mut end_iter = self.text_view.get_buffer().unwrap().get_end_iter();
+        self.text_view
+            .get_buffer()
+            .unwrap()
+            .insert_markup(&mut end_iter, str);
+        if (!str.is_empty() && &str[str.len() - 1..str.len()] != "\n") {
+            let mut end_iter = self.text_view.get_buffer().unwrap().get_end_iter();
+            self.text_view
+                .get_buffer()
+                .unwrap()
+                .insert_markup(&mut end_iter, "\n");
+        }
     }
 }

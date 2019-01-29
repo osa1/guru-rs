@@ -365,23 +365,26 @@ fn parse_string(mut s: &str) -> Option<(String, &str)> {
     let mut escape = false;
     for c in s.chars() {
         c_idx += c.len_utf8();
-        if c == '\\' {
-            if escape {
-                escape = false;
+        if escape {
+            if c == '\\' {
                 output.push(c);
+            } else if c == 'n' {
+                output.push('\n');
+            } else if c == '"' {
+                output.push('"');
             } else {
-                escape = true;
-            }
-        } else if c == '"' {
-            if escape {
+                println!("Unknown escape character: {}", c);
                 output.push(c);
-                escape = false;
-            } else {
-                break;
             }
+            escape = false;
         } else {
-            output.push(c);
-            escape = false; // FIXME
+            if c == '\\' {
+                escape = true;
+            } else if c == '"' {
+                break;
+            } else {
+                output.push(c);
+            }
         }
     }
     s = &s[c_idx..];

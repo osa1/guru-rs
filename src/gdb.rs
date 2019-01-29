@@ -1,4 +1,5 @@
-//! Interfacing with gdb via mi.
+//! Interfacing with gdb via mi. This module only parses gdb messages to mi sytnax
+//! (`mi::output_syntax`).
 
 use std::io::Read;
 use std::os::unix::io::{AsRawFd, RawFd};
