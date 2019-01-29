@@ -49,22 +49,17 @@ pub fn parse_output(mut s: &str) -> Option<Output> {
     Some(ret)
 }
 
-fn parse_out_of_bands(mut s: &str) -> (Vec<OutOfBandResult>, &str) {
-    let mut ret = vec![];
-
-    loop {
-        match parse_out_of_band(s) {
-            Some((out_of_band, s_)) => {
-                s = s_;
-                ret.push(out_of_band);
-            }
-            None => {
-                break;
-            }
+// Expect a newline, then consume any subsequent newlines. According to gdb manual only one newline
+// should be between OOBs/results, but in practice I've seen more than one newlines between
+// them.
+fn expect_newline(s: &str) -> Option<&str> {
+    guard!(s.chars().next()? == '\n');
+    for (c_idx, c) in s.char_indices() {
+        if c != '\n' {
+            return Some(&s[c_idx..]);
         }
     }
-
-    (ret, s)
+    Some("")
 }
 
 // out-of-band-record → async-record | stream-record
@@ -98,27 +93,18 @@ fn parse_out_of_band(s: &str) -> Option<(OutOfBandResult, &str)> {
                 }
                 '~' => {
                     let (stream_record, s) = parse_string(s)?;
-                    guard!(s.chars().next()? == '\n');
-                    Some((
-                        OutOfBandResult::ConsoleStreamRecord(stream_record),
-                        &s['\n'.len_utf8()..],
-                    ))
+                    let s = expect_newline(s)?;
+                    Some((OutOfBandResult::ConsoleStreamRecord(stream_record), s))
                 }
                 '@' => {
                     let (stream_record, s) = parse_string(s)?;
-                    guard!(s.chars().next()? == '\n');
-                    Some((
-                        OutOfBandResult::TargetStreamRecord(stream_record),
-                        &s['\n'.len_utf8()..],
-                    ))
+                    let s = expect_newline(s)?;
+                    Some((OutOfBandResult::TargetStreamRecord(stream_record), s))
                 }
                 '&' => {
                     let (stream_record, s) = parse_string(s)?;
-                    guard!(s.chars().next()? == '\n');
-                    Some((
-                        OutOfBandResult::LogStreamRecord(stream_record),
-                        &s['\n'.len_utf8()..],
-                    ))
+                    let s = expect_newline(s)?;
+                    Some((OutOfBandResult::LogStreamRecord(stream_record), s))
                 }
                 _ => None,
             }
@@ -190,13 +176,14 @@ fn parse_result_record(mut s: &str) -> Option<(Result, &str)> {
             results.push(result);
             s = s_;
         } else if c == '\n' {
+            let s = expect_newline(s)?;
             return Some((
                 Result {
                     token,
                     class,
                     results,
                 },
-                &s[c.len_utf8()..],
+                s,
             ));
         } else {
             return None;
@@ -230,13 +217,14 @@ fn parse_async_record(mut s: &str) -> Option<(AsyncRecord, &str)> {
             let c = cs.next()?;
             if c == '\n' {
                 let class_len = class.len();
+                let s = expect_newline(&s[class_len..])?;
                 return Some((
                     AsyncRecord {
                         token: None,
                         class: class,
                         results: vec![],
                     },
-                    &s[class_len + '\n'.len_utf8()..],
+                    s,
                 ));
             } else if c == ',' {
                 // Dont' skip ',' here!
@@ -254,14 +242,14 @@ fn parse_async_record(mut s: &str) -> Option<(AsyncRecord, &str)> {
         s = s_;
         results.push(result);
     }
-    guard!(s.chars().next()? == '\n');
+    let s = expect_newline(s)?;
     Some((
         AsyncRecord {
             token: None,
             class,
             results,
         },
-        &s['\n'.len_utf8()..],
+        s,
     ))
 }
 
@@ -559,4 +547,25 @@ fn parse_output_tests() {
 
     let s = "*stopped,frame={args=[{name=\"cap\",value=\"0x4de0c0 <MainCapability>\"},{name=\"idle_cap\",value=\"0x507670\"}]}\n";
     assert_eq!(parse_output(s).map(|t| t.len()), Some(1));
+
+    let s = "~\"[Thread debugging using libthread_db enabled]\\n\"\n\
+             *running,thread-id=\"3\"\n\
+             =thread-created,id=\"4\",group-id=\"i1\"\n\
+             *running,thread-id=\"4\"\n\
+             =thread-created,id=\"5\",group-id=\"i1\"\n\
+             ~\"[New Thread 0x7fffef7fe700 (LWP 4044)]\\n\"\n\
+             *running,thread-id=\"5\"\n\n\n\n\
+             ~\"[Thread 0x7fffef7fe700 (LWP 4044) exited]\\n\"\n\
+             =thread-exited,id=\"5\",group-id=\"i1\"\n\
+             ~\"[Thread 0x7fffeffff700 (LWP 4043) exited]\\n\"\n\
+             =thread-exited,id=\"4\",group-id=\"i1\"\n\
+             ~\"[Thread 0x7ffff4d2f700 (LWP 4042) exited]\\n\"\n\
+             =thread-exited,id=\"3\",group-id=\"i1\"\n\
+             ~\"[Thread 0x7ffff5530700 (LWP 4041) exited]\\n\"\n\
+             =thread-exited,id=\"2\",group-id=\"i1\"\n\
+             ~\"[Inferior 1 (process 4037) exited normally]\\n\"\n\
+             =thread-exited,id=\"1\",group-id=\"i1\"\n\
+             =thread-group-exited,id=\"i1\",exit-code=\"0\"\n\
+             *stopped,reason=\"exited-normally\"\n";
+    assert_eq!(parse_output(s).map(|t| t.len()), Some(19));
 }
