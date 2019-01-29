@@ -366,7 +366,7 @@ pub fn parse_value(s: &str) -> Option<(Value, &str)> {
                     loop {
                         let c = s.chars().next()?;
                         if c == ',' {
-                            let (value, s_) = parse_value(s)?;
+                            let (value, s_) = parse_value(&s[c.len_utf8()..])?;
                             values.push(value);
                             s = s_;
                         } else if c == ']' {
@@ -554,4 +554,7 @@ fn parse_output_tests() {
 
     let s = "^running\n*running,thread-id=\"all\"\n";
     assert_eq!(parse_output(s).map(|t| t.len()), Some(2));
+
+    let s = "*stopped,frame={args=[{name=\"cap\",value=\"0x4de0c0 <MainCapability>\"},{name=\"idle_cap\",value=\"0x507670\"}]}\n";
+    assert_eq!(parse_output(s).map(|t| t.len()), Some(1));
 }
