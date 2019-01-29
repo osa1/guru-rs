@@ -42,7 +42,7 @@ impl GdbW {
         let text_view = gtk::TextView::new();
         text_view.set_monospace(true);
         text_view.set_vexpand(true);
-        // text_view.set_editable(false);
+        text_view.set_editable(false);
         scrolled.add(&text_view);
         box_.pack_start(&scrolled, true, true, 0);
 
