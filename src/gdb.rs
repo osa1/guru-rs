@@ -24,7 +24,7 @@ impl GDB {
     /// A spawns that reads gdb stdout and sends parsed mi messages to `msg_sender` will be
     /// spawned.
     pub fn with_args(mut args0: &[String], mut msg_sender: Sender<mi::Output>) -> GDB {
-        let mut args = vec!["-i=mi".to_string(), "--args".to_string()];
+        let mut args = vec!["-n".to_string(), "-i=mi".to_string(), "--args".to_string()];
         args.extend_from_slice(args0);
         let mut process = Command::new("gdb")
             .args(args.into_iter())
