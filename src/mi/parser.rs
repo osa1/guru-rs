@@ -138,6 +138,7 @@ fn parse_result_record(mut s: &str) -> Option<(Result, &str)> {
         }
     };
     guard!(s.chars().next()? == '^');
+    s = &s['^'.len_utf8()..];
     let class = if s.starts_with("done") {
         s = &s["done".len()..];
         ResultClass::Done
@@ -171,7 +172,7 @@ fn parse_result_record(mut s: &str) -> Option<(Result, &str)> {
                     class,
                     results,
                 },
-                s,
+                &s[c.len_utf8()..],
             ));
         } else {
             return None;
@@ -529,5 +530,8 @@ fn parse_output_tests() {
     assert_eq!(parse_output(s), Some((out, "")));
 
     let s = "~\"\\\"\"\n(gdb) \n";
+    assert_eq!(parse_output(s).map(|t| t.1), Some(""));
+
+    let s = "^done\n(gdb) \n";
     assert_eq!(parse_output(s).map(|t| t.1), Some(""));
 }
