@@ -25,6 +25,18 @@ macro_rules! guard {
 // any ordering of out-of-band results and normal results (e.g. we accept [oob, normal, oob,
 // normal] etc.).
 
+// [30/01/2019] Here's another bug with gdb mi: when a breakpoint location causes adding multiple
+// breakpoints the notification is printed like this:
+//
+//      =breakpoint-created,bkpt={...},{...},{...}
+//
+// But this is not valid async record syntax. The results should be in `x=y` format so the
+// breakpoints after the first one (those without `bkpt=`) are not valid.
+//
+// I can't even build gdb on Ubuntu 18.04, and even if I could asking every user to install gdb
+// HEAD would be asking too much. So to deal with this we extend make the AST more flexible, and
+// make the LHS (`bkpt=` part) optional. *sigh*
+
 pub fn parse_output(mut s: &str) -> Option<Output> {
     let mut ret = vec![];
 
