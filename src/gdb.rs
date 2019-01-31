@@ -92,7 +92,7 @@ fn message_handler(stdout: &mut ChildStdout, msg_sender: &mut Sender<mi::Output>
                         println!("Can't parse mi message: {:?}", msg);
                     }
                     Some(mi_msgs) => {
-                        // println!("mi message parsed: {:?}", mi_msgs);
+                        println!("mi message parsed: {:?}", mi_msgs);
                         msg_sender.send(mi_msgs);
                         msg_bytes.drain(0..idx + MI_MSG_SEP.len());
                     }

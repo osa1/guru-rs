@@ -24,6 +24,7 @@ impl ThreadsW {
         let box_ = gtk::Box::new(gtk::Orientation::Vertical, 0);
         box_.set_baseline_position(gtk::BaselinePosition::Top);
         scrolled.add(&box_);
+        box_.add(&gtk::Label::new("Threads"));
 
         ThreadsW {
             widget: box_,
@@ -36,17 +37,20 @@ impl ThreadsW {
         self.widget.upcast_ref()
     }
 
-    pub fn set_threads(&mut self, threads: &[Backtrace]) {
-        let mut ws = Vec::with_capacity(threads.len());
-        for (thread_idx, thread) in threads.iter().enumerate() {
-            let expander = gtk::Expander::new(Some(format!("Thread {}", thread_idx).as_str()));
-            expander.set_expanded(true);
-            let w = BacktraceW::new(thread);
-            expander.add(w.get_widget());
-            self.widget.pack_start(&expander, false, false, 0);
-            ws.push(w);
+    pub fn clear(&mut self) {
+        for thread in &self.threads {
+            self.widget.remove(thread.get_widget());
         }
-        self.threads = ws;
+        self.threads.clear();
+    }
+
+    pub fn add_thread(&mut self, thread_id: i32, bt: &Backtrace) {
+        let expander = gtk::Expander::new(Some(format!("Thread {}", thread_id).as_str()));
+        expander.set_expanded(true);
+        let w = BacktraceW::new(bt);
+        expander.add(w.get_widget());
+        self.widget.pack_start(&expander, true, true, 0);
+        self.threads.push(w);
     }
 
     /// Make same columns of different thread views the same. Note that this only works after

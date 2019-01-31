@@ -33,6 +33,13 @@ impl Value {
             _ => None,
         }
     }
+
+    pub fn get_value_list(self) -> Option<Vec<Value>> {
+        match self {
+            Value::ValueList(values) => Some(values),
+            _ => None,
+        }
+    }
 }
 
 // This is different than the syntax defined in gdb-mi documentation because the documentation is
@@ -43,6 +50,15 @@ pub type Output = Vec<ResultOrOOB>;
 pub enum ResultOrOOB {
     Result(Result),
     OOB(OutOfBandResult),
+}
+
+impl ResultOrOOB {
+    pub fn get_result(self) -> Option<Result> {
+        match self {
+            ResultOrOOB::Result(result) => Some(result),
+            ResultOrOOB::OOB(_) => None,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
