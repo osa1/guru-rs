@@ -28,7 +28,7 @@ pub struct App(Rc<RefCell<AppInner>>);
 impl App {
     pub fn new(gtk_app: &gtk::Application) -> App {
         let window = gtk::ApplicationWindow::new(gtk_app);
-        window.set_default_size(500, 850);
+        window.set_default_size(1200, 1050);
         window.set_title("guru");
 
         // Horizontal: | Vertical: -
