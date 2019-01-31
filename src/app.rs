@@ -55,7 +55,7 @@ impl App {
         vert1.pack2(breakpoints_w.get_widget(), true, false);
 
         let threads_w = widgets::ThreadsW::new();
-        horiz1.pack2(threads_w.get_widget(), true, false);
+        horiz1.pack2(threads_w.get_widget(), true, true);
 
         window.show_all();
 

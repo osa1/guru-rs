@@ -12,7 +12,8 @@ use crate::widgets::backtrace::BacktraceW;
 
 pub struct ThreadsW {
     // scrolled -> box -> [expander -> BacktraceW]
-    widget: gtk::Box,
+    widget: gtk::ScrolledWindow,
+    box_: gtk::Box,
     threads: Vec<BacktraceW>,
 }
 
@@ -24,10 +25,10 @@ impl ThreadsW {
         let box_ = gtk::Box::new(gtk::Orientation::Vertical, 0);
         box_.set_baseline_position(gtk::BaselinePosition::Top);
         scrolled.add(&box_);
-        box_.add(&gtk::Label::new("Threads"));
 
         ThreadsW {
-            widget: box_,
+            widget: scrolled,
+            box_,
             threads: vec![],
         }
     }
@@ -39,7 +40,7 @@ impl ThreadsW {
 
     pub fn clear(&mut self) {
         for thread in &self.threads {
-            self.widget.remove(thread.get_widget());
+            self.box_.remove(thread.get_widget());
         }
         self.threads.clear();
     }
@@ -49,8 +50,9 @@ impl ThreadsW {
         expander.set_expanded(true);
         let w = BacktraceW::new(bt);
         expander.add(w.get_widget());
-        self.widget.pack_start(&expander, true, true, 0);
+        self.box_.pack_start(&expander, true, true, 0);
         self.threads.push(w);
+        self.box_.show_all();
     }
 
     /// Make same columns of different thread views the same. Note that this only works after
