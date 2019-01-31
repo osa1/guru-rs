@@ -45,8 +45,8 @@ impl ThreadsW {
         self.threads.clear();
     }
 
-    pub fn add_thread(&mut self, thread_id: i32, bt: &Backtrace) {
-        let expander = gtk::Expander::new(Some(format!("Thread {}", thread_id).as_str()));
+    pub fn add_thread(&mut self, thread_id: i32, target_id: &str, bt: &Backtrace) {
+        let expander = gtk::Expander::new(Some(format!("#{} {}", thread_id, target_id).as_str()));
         expander.set_expanded(true);
         expander.set_vexpand(false);
         let w = BacktraceW::new(bt);

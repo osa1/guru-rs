@@ -20,6 +20,13 @@ impl Value {
         }
     }
 
+    pub fn get_const(self) -> Option<String> {
+        match self {
+            Value::Const(s) => Some(s),
+            _ => None,
+        }
+    }
+
     pub fn get_tuple(self) -> Option<HashMap<Variable, Value>> {
         match self {
             Value::Tuple(m) => Some(m),

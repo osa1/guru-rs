@@ -240,6 +240,7 @@ fn thread_info_cb(inner: &mut AppInner, outer: &App, msg: mi::ResultOrOOB) {
         let mut thread = thread.get_tuple().unwrap();
         let thread_id =
             str::parse::<i32>(thread.remove("id").unwrap().get_const_ref().unwrap()).unwrap();
+        let target_id = thread.remove("target-id").unwrap().get_const().unwrap();
         let token = inner.get_token();
         let mut gdb = inner.gdb.as_mut().unwrap();
         writeln!(
@@ -248,11 +249,22 @@ fn thread_info_cb(inner: &mut AppInner, outer: &App, msg: mi::ResultOrOOB) {
             token,
             thread_id
         );
-        inner.callbacks.insert(token, Box::new(thread_stack_cb));
+        inner.callbacks.insert(
+            token,
+            Box::new(move |inner, outer, msg| {
+                thread_stack_cb(inner, outer, msg, thread_id, &target_id)
+            }),
+        );
     }
 }
 
-fn thread_stack_cb(inner: &mut AppInner, outer: &App, msg: mi::ResultOrOOB) {
+fn thread_stack_cb(
+    inner: &mut AppInner,
+    outer: &App,
+    msg: mi::ResultOrOOB,
+    thread_id: i32,
+    target_id: &str,
+) {
     // [RESULT] Done: stack = [frame = {file = ../sysdeps/unix/sysv/linux/x86_64/syscall.S, func = syscall, level = 0, line = 38, addr = 0x00007ffff541f839, fullname = /build/glibc-OTsEL5/glibc-2.27/misc/../sysdeps/unix/sysv/linux/x86_64/syscall.S}, frame = {from = /usr/lib/x86_64-linux-gnu/libglib-2.0.so.0, level = 1, addr = 0x00007ffff5fca29a, func = g_cond_wait_until}, frame = {from = /usr/lib/x86_64-linux-gnu/libglib-2.0.so.0, addr = 0x00007ffff5f574f1, level = 2, func = ??}, frame = {func = g_async_queue_timeout_pop, from = /usr/lib/x86_64-linux-gnu/libglib-2.0.so.0, level = 3, addr = 0x00007ffff5f57aac}, frame = {func = ??, from = /usr/lib/x86_64-linux-gnu/libglib-2.0.so.0, level = 4, addr = 0x00007ffff5facbae}, frame = {from = /usr/lib/x86_64-linux-gnu/libglib-2.0.so.0, func = ??, addr = 0x00007ffff5fac105, level = 5}, frame = {fullname = /build/glibc-OTsEL5/glibc-2.27/nptl/pthread_create.c, level = 6, line = 463, func = start_thread, file = pthread_create.c, addr = 0x00007ffff59146db}, frame = {file = ../sysdeps/unix/sysv/linux/x86_64/clone.S, func = clone, addr = 0x00007ffff542588f, line = 95, fullname = /build/glibc-OTsEL5/glibc-2.27/misc/../sysdeps/unix/sysv/linux/x86_64/clone.S, level = 7}
     let mut result = msg.get_result().unwrap();
     let bt = result
@@ -262,7 +274,7 @@ fn thread_stack_cb(inner: &mut AppInner, outer: &App, msg: mi::ResultOrOOB) {
         .get_result_list()
         .unwrap();
     let bt = parsers::parse_backtrace(bt).unwrap();
-    inner.threads_w.add_thread(0 /* FIXME */, &bt);
+    inner.threads_w.add_thread(thread_id, target_id, &bt);
 }
 
 fn render_async_record(async_: &mi::AsyncRecord) -> String {
