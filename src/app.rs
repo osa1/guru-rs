@@ -133,19 +133,19 @@ impl App {
             mi::OutOfBandResult::ConsoleStreamRecord(str) => {
                 inner.gdb_w.insert_line(&format!(
                     "<span color=\"#A1D490\">[CONSOLE]</span> {}",
-                    escape_brackets(&str)
+                    glib::markup_escape_text(&str)
                 ));
             }
             mi::OutOfBandResult::TargetStreamRecord(str) => {
                 inner.gdb_w.insert_line(&format!(
                     "<span color=\"#90C3D4\">[TARGET]</span> {}",
-                    escape_brackets(&str)
+                    glib::markup_escape_text(&str)
                 ));
             }
             mi::OutOfBandResult::LogStreamRecord(str) => {
                 inner.gdb_w.insert_line(&format!(
                     "<span color=\"#D4A190\">[LOG]</span> {}",
-                    escape_brackets(&str)
+                    glib::markup_escape_text(&str)
                 ));
             }
         }
@@ -210,7 +210,7 @@ fn render_async_record(async_: &mi::AsyncRecord) -> String {
 
 fn render_value(val: &mi::Value) -> String {
     match val {
-        mi::Value::Const(str) => escape_brackets(&str),
+        mi::Value::Const(str) => glib::markup_escape_text(&str).as_str().to_owned(),
         mi::Value::Tuple(map) => {
             let mut ret = "{".to_string();
             let mut first = true;
@@ -275,22 +275,6 @@ fn render_result(result: &mi::Result) -> String {
         }
         first = false;
         ret.push_str(&format!("{} = {}", var, render_value(val)));
-    }
-    ret
-}
-
-/// Escape '<' and '>' characters in the string so that they don't look like pango tags when adding
-/// to a text view. TODO: we should do proper HTML escaping
-fn escape_brackets(s: &str) -> String {
-    let mut ret = String::new();
-    for c in s.chars() {
-        if c == '<' {
-            ret.push_str("&lt;");
-        } else if c == '>' {
-            ret.push_str("&gt;");
-        } else {
-            ret.push(c);
-        }
     }
     ret
 }
