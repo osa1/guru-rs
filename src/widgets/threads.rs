@@ -48,11 +48,14 @@ impl ThreadsW {
     pub fn add_thread(&mut self, thread_id: i32, bt: &Backtrace) {
         let expander = gtk::Expander::new(Some(format!("Thread {}", thread_id).as_str()));
         expander.set_expanded(true);
+        expander.set_vexpand(false);
         let w = BacktraceW::new(bt);
         expander.add(w.get_widget());
-        self.box_.pack_start(&expander, true, true, 0);
+        self.box_.pack_start(&expander, false, false, 0);
         self.threads.push(w);
         self.box_.show_all();
+        // This traversel all rows in every addition but OK
+        // self.reset_cols();
     }
 
     /// Make same columns of different thread views the same. Note that this only works after
