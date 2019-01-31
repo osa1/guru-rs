@@ -38,9 +38,6 @@ fn build_ui(gtk_app: &gtk::Application) {
         .collect::<Vec<String>>();
     println!("args: {:?}", gdb_args);
 
-    // Connect to gdb with no args in a few seconds, for testing
-    gtk::timeout_add_seconds(3, move || {
-        app.gdb_connect(&gdb_args);
-        gtk::Continue(false)
-    });
+    // Connect to gdb with no args, for testing
+    app.gdb_connect(&gdb_args);
 }
