@@ -48,7 +48,7 @@ impl BacktraceW {
         let view = gtk::TreeView::new_with_model(&model);
         view.set_vexpand(false);
         view.set_hexpand(true);
-        view.set_headers_visible(true);
+        view.set_headers_visible(false);
 
         let add_text_renderer_col = |title: &'static str, col_ty: Cols, selectable: bool| {
             let renderer = gtk::CellRendererText::new();

@@ -63,6 +63,7 @@ pub enum BreakpointDisposition {
 
 pub struct Backtrace(pub Vec<Frame>);
 
+#[derive(Debug)]
 pub struct Frame {
     pub level: usize,
 
@@ -84,4 +85,18 @@ pub struct Frame {
     /// The shared library where this function is defined. This is only given if the frame’s
     /// function is not known.
     pub from: Option<String>,
+}
+
+//
+// Disassembly stuff
+//
+
+/// An assembly instruction. Output by commands like `-data-disassemble`.
+#[derive(Debug)]
+pub struct AsmInst {
+    // TODO: Not sure what this is
+    pub offset: usize,
+    pub func_name: String,
+    pub inst: String,
+    pub address: String,
 }

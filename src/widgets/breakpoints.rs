@@ -8,6 +8,7 @@ use crate::types::{Breakpoint, BreakpointDisposition, BreakpointType};
 pub struct BreakpointsW {
     model: gtk::ListStore,
     view: gtk::TreeView,
+    bp_enabled_renderer: gtk::CellRendererToggle,
 }
 
 // TODO: How to best show disposition?
@@ -61,12 +62,12 @@ impl BreakpointsW {
         view.set_headers_visible(true);
 
         // Enabled column, render as a toggle
-        let renderer = gtk::CellRendererToggle::new();
-        renderer.connect_toggled(|_w, _path| { /* TODO */ });
+        let bp_enabled_renderer = gtk::CellRendererToggle::new();
+        // bp_enabled.connect_toggled(|_w, _path| { /* TODO */ });
         let column = gtk::TreeViewColumn::new();
-        column.pack_start(&renderer, true);
+        column.pack_start(&bp_enabled_renderer, true);
         column.set_title("Enabled");
-        column.add_attribute(&renderer, "active", Cols::Enabled as i32);
+        column.add_attribute(&bp_enabled_renderer, "active", Cols::Enabled as i32);
         view.append_column(&column);
 
         // Helper for string columns
@@ -90,7 +91,55 @@ impl BreakpointsW {
         add_col("Condition", Cols::Cond, true);
         add_col("Hits", Cols::Hits, false);
 
-        BreakpointsW { view, model }
+        BreakpointsW {
+            view,
+            model,
+            bp_enabled_renderer,
+        }
+    }
+
+    pub fn connect_breakpoint_enabled(
+        &self,
+        cb: Box<Fn(u32, bool /* true => enable, false => disable */)>,
+    ) {
+        let model = self.model.clone(); // TODO: I hope this is just a refcount bump?
+        self.bp_enabled_renderer.connect_toggled(move |_w, path| {
+            let iter = model.get_iter(&path).unwrap();
+            let old_enabled = model
+                .get_value(&iter, Cols::Enabled as i32)
+                .get::<bool>()
+                .unwrap();
+            let bp_id = model
+                .get_value(&iter, Cols::Number as i32)
+                .get::<String>()
+                .unwrap()
+                .parse::<u32>()
+                .unwrap();
+            cb(bp_id, !old_enabled);
+        });
+    }
+
+    pub fn toggle_breakpoint(&self, bp_id: u32, enable: bool) {
+        // find the row for the row with given breakpoint id
+        if let Some(iter) = self.model.get_iter_first() {
+            loop {
+                let bp_id_ = self
+                    .model
+                    .get_value(&iter, Cols::Number as i32)
+                    .get::<String>()
+                    .unwrap()
+                    .parse::<u32>()
+                    .unwrap();
+                if bp_id_ == bp_id {
+                    self.model
+                        .set_value(&iter, Cols::Enabled as u32, &enable.to_value());
+                    return;
+                }
+                if !self.model.iter_next(&iter) {
+                    break;
+                }
+            }
+        }
     }
 
     /// ONLY USE TO ADD THIS TO CONTAINERS!

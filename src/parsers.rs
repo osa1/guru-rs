@@ -1,4 +1,5 @@
-/// Parsing gdb-mi AST (`mi::output_syntax`) to useful types.
+//! Parsing gdb-mi AST (`mi::output_syntax`) to useful types.
+
 use crate::mi::output_syntax as mi;
 use crate::types::*;
 
@@ -91,4 +92,24 @@ pub fn parse_breakpoint(v: HashMap<mi::Variable, mi::Value>) -> Option<Breakpoin
         cond,
         hits,
     })
+}
+
+// >>> -data-disassemble -f <file> -l <line> -n -1 -- 0
+// Key: asm_insns, value: list of tuples (input to this function)
+pub fn parse_asm_insts(insts: Vec<mi::Value>) -> Option<Vec<AsmInst>> {
+    let mut ret = vec![];
+    for inst in insts {
+        let mut inst = inst.get_tuple()?;
+        let offset = str::parse::<usize>(&inst.remove("offset")?.get_const()?).ok()?;
+        let func_name = inst.remove("func-name")?.get_const()?;
+        let inst_ = inst.remove("inst")?.get_const()?;
+        let address = inst.remove("address")?.get_const()?;
+        ret.push(AsmInst {
+            offset,
+            func_name,
+            inst: inst_,
+            address,
+        });
+    }
+    Some(ret)
 }

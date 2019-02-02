@@ -69,11 +69,21 @@ impl App {
         })));
 
         {
-            let app1 = app.clone();
+            let app_clone = app.clone();
+            app.0
+                .borrow_mut()
+                .breakpoints_w
+                .connect_breakpoint_enabled(Box::new(move |bp_id, enable| {
+                    app_clone.0.borrow_mut().breakpoint_toggled(bp_id, enable);
+                }));
+        }
+
+        {
+            let app_clone = app.clone();
             app.0
                 .borrow_mut()
                 .gdb_w
-                .connect_text_entered(move |msg| app1.send_mi_msg(msg));
+                .connect_text_entered(move |msg| app_clone.send_mi_msg(msg));
         }
 
         app
@@ -177,6 +187,27 @@ impl AppInner {
         let ret = self.token;
         self.token += 1;
         ret
+    }
+
+    fn breakpoint_toggled(&mut self, bp_id: u32, enable: bool) {
+        // TODO: We should get token if gdb is available, but can't move this below as it borrowchk
+        // still not smart enough.
+        let token = self.get_token();
+        if let Some(ref mut gdb) = self.gdb {
+            let stdin = gdb.stdin();
+            if enable {
+                writeln!(stdin, "{}-break-enable {}", token, bp_id).unwrap();
+            } else {
+                writeln!(stdin, "{}-break-disable {}", token, bp_id).unwrap();
+            }
+            self.callbacks.insert(
+                token,
+                Box::new(move |app_inner, app, msg| {
+                    // TODO: Check if the message is "Done"
+                    app_inner.breakpoints_w.toggle_breakpoint(bp_id, enable);
+                }),
+            );
+        }
     }
 
     fn handle_result(&mut self, outer: &App, mut result: mi::Result) {
