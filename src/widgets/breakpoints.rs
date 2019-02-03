@@ -20,6 +20,7 @@ const NUM_COLS: usize = 6;
 #[repr(i32)]
 enum Cols {
     Enabled = 0,
+    // Unique
     Number,
     // E.g. foo.c:123
     Location,
@@ -147,18 +148,76 @@ impl BreakpointsW {
         self.view.upcast_ref()
     }
 
-    pub fn add_breakpoint(&self, bp: &Breakpoint) {
+    /// Update the breakpoint if it exists, otherwise add a new one.
+    pub fn add_or_update_breakpoint(&self, bp: &Breakpoint) {
+        if let Some(iter) = self.model.get_iter_first() {
+            loop {
+                let bp_id = self
+                    .model
+                    .get_value(&iter, Cols::Number as i32)
+                    .get::<String>()
+                    .unwrap()
+                    .parse::<u32>()
+                    .unwrap();
+                if bp_id == bp.number {
+                    self.model.set(
+                        &iter,
+                        &[
+                            Cols::Enabled as u32,
+                            Cols::Location as u32,
+                            Cols::Address as u32,
+                            Cols::Cond as u32,
+                            Cols::Hits as u32,
+                        ],
+                        &[
+                            &mk_enabled_col(bp),
+                            &mk_location_col(bp),
+                            &mk_address_col(bp),
+                            &mk_cond_col(bp),
+                            &mk_hits_col(bp),
+                        ],
+                    );
+                    return;
+                }
+            }
+        }
+
+        // Add a new row if we reach here
         let values: [&dyn gtk::ToValue; NUM_COLS] = [
-            &bp.enabled,
-            &format!("{}", bp.number),
-            &format!("{}:{}", bp.file, bp.line),
-            &bp.address,
-            match bp.cond {
-                None => &"",
-                Some(ref cond) => cond,
-            },
-            &format!("{}", bp.hits),
+            &mk_enabled_col(bp),
+            &mk_number_col(bp),
+            &mk_location_col(bp),
+            &mk_address_col(bp),
+            &mk_cond_col(bp),
+            &mk_hits_col(bp),
         ];
         self.model.set(&self.model.append(), &COL_INDICES, &values);
     }
+}
+
+fn mk_enabled_col(bp: &Breakpoint) -> gtk::Value {
+    bp.enabled.to_value()
+}
+
+fn mk_number_col(bp: &Breakpoint) -> gtk::Value {
+    format!("{}", bp.number).to_value()
+}
+
+fn mk_location_col(bp: &Breakpoint) -> gtk::Value {
+    format!("{}:{}", bp.file, bp.line).to_value()
+}
+
+fn mk_address_col(bp: &Breakpoint) -> gtk::Value {
+    bp.address.to_value()
+}
+
+fn mk_cond_col(bp: &Breakpoint) -> gtk::Value {
+    match bp.cond {
+        None => "".to_value(),
+        Some(ref cond) => cond.to_value(),
+    }
+}
+
+fn mk_hits_col(bp: &Breakpoint) -> gtk::Value {
+    format!("{}", bp.hits).to_value()
 }

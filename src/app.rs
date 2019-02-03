@@ -236,11 +236,11 @@ impl AppInner {
         };
 
         match async_.class.as_str() {
-            "breakpoint-created" => {
+            "breakpoint-created" | "breakpoint-modified" => {
                 let bkpt = some!(async_.results.remove("bkpt"));
                 let bkpt = some!(bkpt.get_tuple());
                 let bkpt = some!(parsers::parse_breakpoint(bkpt));
-                self.breakpoints_w.add_breakpoint(&bkpt);
+                self.breakpoints_w.add_or_update_breakpoint(&bkpt);
             }
             "stopped" => {
                 // Execution stopped. Update threads.

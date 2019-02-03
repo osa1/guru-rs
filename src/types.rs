@@ -6,6 +6,7 @@
 
 #[derive(Debug)]
 pub struct Breakpoint {
+    /// Unique number
     pub number: u32,
 
     pub type_: BreakpointType,
