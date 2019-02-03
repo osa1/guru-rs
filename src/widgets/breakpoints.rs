@@ -245,7 +245,7 @@ fn mk_enabled_col(bp: &Breakpoint) -> gtk::Value {
 }
 
 fn mk_number_col(bp: &Breakpoint) -> gtk::Value {
-    format!("#{}", bp.number).to_value()
+    format!("{}", bp.number).to_value()
 }
 
 fn mk_location_col(bp: &Breakpoint) -> gtk::Value {

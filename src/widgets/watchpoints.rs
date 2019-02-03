@@ -130,7 +130,7 @@ impl WatchpointsW {
     pub fn add_watchpoint(&self, id: u32, expr: &str, type_: WatchpointType) {
         let values: [&dyn gtk::ToValue; NUM_COLS] = [
             &true.to_value(),
-            &format!("#{}", id).to_value(),
+            &format!("{}", id).to_value(),
             &expr.to_value(),
             &"".to_value(),
             &"0".to_value(),
