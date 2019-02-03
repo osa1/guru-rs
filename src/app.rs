@@ -256,7 +256,7 @@ impl AppInner {
             } else {
                 writeln!(
                     stdin,
-                    "{}-break-insert -c {} {}",
+                    "{}-break-insert -c \"{}\" {}",
                     token, condition, location
                 )
                 .unwrap();
