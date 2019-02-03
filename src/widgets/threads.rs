@@ -39,8 +39,8 @@ impl ThreadsW {
     }
 
     pub fn clear(&mut self) {
-        for thread in &self.threads {
-            self.box_.remove(thread.get_widget());
+        for w in self.box_.get_children() {
+            self.box_.remove(&w);
         }
         self.threads.clear();
     }
