@@ -247,6 +247,7 @@ impl AppInner {
                 let token = self.get_token();
                 let mut gdb = some!(self.gdb.as_mut());
                 writeln!(gdb.stdin(), "{}-thread-info", token);
+                self.threads_w.clear();
                 self.callbacks.insert(token, Box::new(thread_info_cb));
             }
             _ => {}
