@@ -3,18 +3,26 @@
 use gio::prelude::*;
 use gtk::prelude::*;
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crate::types::{Breakpoint, BreakpointDisposition, BreakpointType};
+use crate::widgets::breakpoint_add::BreakpointAddW;
 
 pub struct BreakpointsW {
+    // scrolled -> box -> [tree view, image (plus icon)]
+    widget: gtk::ScrolledWindow,
     model: gtk::ListStore,
     view: gtk::TreeView,
     bp_enabled_renderer: gtk::CellRendererToggle,
+    // "Add breakpoint" widget
+    add_bp: BreakpointAddW,
 }
 
 // TODO: How to best show disposition?
 
 /// Number of columns
-const NUM_COLS: usize = 6;
+const NUM_COLS: usize = 7;
 
 /// Column indices for cell renderers
 #[repr(i32)]
@@ -22,8 +30,10 @@ enum Cols {
     Enabled = 0,
     // Unique
     Number,
-    // E.g. foo.c:123
+    // Usually just a function name
     Location,
+    // E.g. foo.c:123
+    File,
     // Memory location ($rip) of the breakpoint
     Address,
     // Condition
@@ -37,13 +47,14 @@ static COL_TYPES: [gtk::Type; NUM_COLS] = [
     gtk::Type::Bool,   // enabled
     gtk::Type::String, // number
     gtk::Type::String, // location
+    gtk::Type::String, // file
     gtk::Type::String, // address
     gtk::Type::String, // condition
     gtk::Type::String, // hits
 ];
 
 /// Column indices for when inserting rows into the list store
-static COL_INDICES: [u32; NUM_COLS] = [0, 1, 2, 3, 4, 5];
+static COL_INDICES: [u32; NUM_COLS] = [0, 1, 2, 3, 4, 5, 6];
 
 impl BreakpointsW {
     pub fn new() -> BreakpointsW {
@@ -54,6 +65,24 @@ impl BreakpointsW {
         let model = gtk::ListStore::new(&COL_TYPES);
 
         //
+        // Create the containers (scrolled, box)
+        //
+
+        let scrolled = gtk::ScrolledWindow::new(gtk::NONE_ADJUSTMENT, gtk::NONE_ADJUSTMENT);
+        scrolled.set_policy(gtk::PolicyType::Automatic, gtk::PolicyType::Automatic);
+
+        let box_ = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        box_.set_baseline_position(gtk::BaselinePosition::Top);
+        scrolled.add(&box_);
+
+        //
+        // Create the "Add breakpoint" widget
+        //
+
+        let add_bp = BreakpointAddW::new();
+        box_.pack_end(add_bp.get_widget(), false, false, 0);
+
+        //
         // Create the view
         //
 
@@ -61,10 +90,10 @@ impl BreakpointsW {
         view.set_vexpand(false);
         view.set_hexpand(false);
         view.set_headers_visible(true);
+        box_.pack_start(&view, true, true, 0);
 
         // Enabled column, render as a toggle
         let bp_enabled_renderer = gtk::CellRendererToggle::new();
-        // bp_enabled.connect_toggled(|_w, _path| { /* TODO */ });
         let column = gtk::TreeViewColumn::new();
         column.pack_start(&bp_enabled_renderer, true);
         column.set_title("Enabled");
@@ -88,14 +117,17 @@ impl BreakpointsW {
 
         add_col("Number", Cols::Number, false);
         add_col("Location", Cols::Location, true);
+        add_col("File", Cols::File, true);
         add_col("Address", Cols::Address, false);
         add_col("Condition", Cols::Cond, true);
         add_col("Hits", Cols::Hits, false);
 
         BreakpointsW {
+            widget: scrolled,
             view,
             model,
             bp_enabled_renderer,
+            add_bp,
         }
     }
 
@@ -118,6 +150,11 @@ impl BreakpointsW {
                 .unwrap();
             cb(bp_id, !old_enabled);
         });
+    }
+
+    /// Set "breakpoint added" callback. Arguments are: location, condition.
+    pub fn connect_breakpoint_added(&self, cb: Box<Fn(String, String)>) {
+        self.add_bp.connect_breakpoint_added(cb);
     }
 
     pub fn toggle_breakpoint(&self, bp_id: u32, enable: bool) {
@@ -145,11 +182,12 @@ impl BreakpointsW {
 
     /// ONLY USE TO ADD THIS TO CONTAINERS!
     pub fn get_widget(&self) -> &gtk::Widget {
-        self.view.upcast_ref()
+        self.widget.upcast_ref()
     }
 
     /// Update the breakpoint if it exists, otherwise add a new one.
     pub fn add_or_update_breakpoint(&self, bp: &Breakpoint) {
+        println!("add_or_update_breakpoint({:?})", bp);
         if let Some(iter) = self.model.get_iter_first() {
             loop {
                 let bp_id = self
@@ -165,6 +203,7 @@ impl BreakpointsW {
                         &[
                             Cols::Enabled as u32,
                             Cols::Location as u32,
+                            Cols::File as u32,
                             Cols::Address as u32,
                             Cols::Cond as u32,
                             Cols::Hits as u32,
@@ -172,12 +211,17 @@ impl BreakpointsW {
                         &[
                             &mk_enabled_col(bp),
                             &mk_location_col(bp),
+                            &mk_file_col(bp),
                             &mk_address_col(bp),
                             &mk_cond_col(bp),
                             &mk_hits_col(bp),
                         ],
                     );
                     return;
+                }
+
+                if !self.model.iter_next(&iter) {
+                    break;
                 }
             }
         }
@@ -187,6 +231,7 @@ impl BreakpointsW {
             &mk_enabled_col(bp),
             &mk_number_col(bp),
             &mk_location_col(bp),
+            &mk_file_col(bp),
             &mk_address_col(bp),
             &mk_cond_col(bp),
             &mk_hits_col(bp),
@@ -204,7 +249,14 @@ fn mk_number_col(bp: &Breakpoint) -> gtk::Value {
 }
 
 fn mk_location_col(bp: &Breakpoint) -> gtk::Value {
-    format!("{}:{}", bp.file, bp.line).to_value()
+    bp.original_location.to_value()
+}
+
+fn mk_file_col(bp: &Breakpoint) -> gtk::Value {
+    match (&bp.file, &bp.line) {
+        (Some(ref file), Some(ref line)) => format!("{}:{}", file, line).to_value(),
+        _ => "".to_value(),
+    }
 }
 
 fn mk_address_col(bp: &Breakpoint) -> gtk::Value {

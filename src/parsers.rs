@@ -67,17 +67,27 @@ pub fn parse_breakpoint(v: HashMap<mi::Var, mi::Value>) -> Option<Breakpoint> {
         }
     };
     let address = v.get("addr")?.get_const_ref()?.to_string();
-    let func = v.get("func")?.get_const_ref()?.to_string();
-    let file = v.get("file")?.get_const_ref()?.to_string();
-    let fullname = v.get("fullname")?.get_const_ref()?.to_string();
-    let line = v.get("line")?.get_const_ref()?.parse::<u32>().ok()?;
+    // TODO: what's the difference between "original-location" and "func"? "func" isn't always
+    // available
+    let original_location = v.get("original-location")?.get_const_ref()?.to_string();
+    let file = match v.get("file") {
+        None => None,
+        Some(file) => Some(file.get_const_ref()?.to_string()),
+    };
+    let fullname = match v.get("fullname") {
+        None => None,
+        Some(fullname) => Some(fullname.get_const_ref()?.to_string()),
+    };
+    let line = match v.get("line") {
+        None => None,
+        Some(line) => Some(line.get_const_ref()?.parse::<u32>().ok()?),
+    };
     // TODO thread-groups
     let cond = match v.get("cond") {
         None => None,
         Some(cond) => Some(cond.get_const_ref()?.to_string()),
     };
     let hits = v.get("times")?.get_const_ref()?.parse::<u32>().ok()?;
-    // TODO original-location
 
     Some(Breakpoint {
         number,
@@ -85,7 +95,7 @@ pub fn parse_breakpoint(v: HashMap<mi::Var, mi::Value>) -> Option<Breakpoint> {
         disposition,
         enabled,
         address,
-        func,
+        original_location,
         file,
         fullname,
         line,

@@ -24,17 +24,20 @@ pub struct Breakpoint {
         /// Logical location of the breakpoint, expressed by function name, file name, line number.
         pub what: String,
     */
+    /*
     /// Function name
     pub func: String,
+    */
+    pub original_location: String,
 
     /// File name
-    pub file: String,
+    pub file: Option<String>,
 
     /// Full path of the file
-    pub fullname: String,
+    pub fullname: Option<String>,
 
     /// Line number
-    pub line: u32,
+    pub line: Option<u32>,
 
     /// Condition
     pub cond: Option<String>,
