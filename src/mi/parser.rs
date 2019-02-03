@@ -204,7 +204,7 @@ fn parse_result_record(mut s: &str) -> Option<(Result, &str)> {
     }
 }
 
-fn parse_token(s: &str) -> Option<(Token, &str)> {
+fn parse_token(s: &str) -> Option<(u64, &str)> {
     guard!(!s.is_empty());
     let mut token = String::new();
     let mut c_idx = 0;
@@ -219,7 +219,7 @@ fn parse_token(s: &str) -> Option<(Token, &str)> {
             break;
         }
     }
-    Some((token, &s[c_idx..]))
+    Some((token.parse::<u64>().ok()?, &s[c_idx..]))
 }
 
 fn parse_async_record(mut s: &str) -> Option<(AsyncRecord, &str)> {
@@ -268,7 +268,7 @@ fn parse_async_record(mut s: &str) -> Option<(AsyncRecord, &str)> {
 }
 
 // result → variable "=" value
-fn parse_result(s: &str) -> Option<((Variable, Value), &str)> {
+fn parse_result(s: &str) -> Option<((Var, Value), &str)> {
     let (var, mut s) = parse_variable(s)?;
     guard!(s.chars().next()? == '=');
     s = &s['='.len_utf8()..];
@@ -278,7 +278,7 @@ fn parse_result(s: &str) -> Option<((Variable, Value), &str)> {
 
 // variable → string
 // It's not clear what a string is though.
-fn parse_variable(s: &str) -> Option<(Variable, &str)> {
+fn parse_variable(s: &str) -> Option<(Var, &str)> {
     let mut ret = String::new();
     let mut c_idx = 0;
     for c in s.chars() {

@@ -212,7 +212,6 @@ impl AppInner {
 
     fn handle_result(&mut self, outer: &App, mut result: mi::Result) {
         if let Some(ref token) = result.token {
-            let token = str::parse::<u64>(token).unwrap();
             match self.callbacks.remove(&token) {
                 None => {
                     println!("Can't find callback for result {}", token);

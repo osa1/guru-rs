@@ -15,7 +15,7 @@ macro_rules! guard {
 }
 
 /// Parse a single frame.
-pub fn parse_frame(v: HashMap<mi::Variable, mi::Value>) -> Option<Frame> {
+pub fn parse_frame(v: HashMap<mi::Var, mi::Value>) -> Option<Frame> {
     println!("parse frame: {:?}", v);
     Some(Frame {
         level: v.get("level")?.get_const_ref()?.parse::<usize>().ok()?,
@@ -37,7 +37,7 @@ pub fn parse_frame(v: HashMap<mi::Variable, mi::Value>) -> Option<Frame> {
     })
 }
 
-pub fn parse_backtrace(v: Vec<(mi::Variable, mi::Value)>) -> Option<Backtrace> {
+pub fn parse_backtrace(v: Vec<(mi::Var, mi::Value)>) -> Option<Backtrace> {
     let mut frames = vec![];
     for (k, v) in v {
         guard!(k == "frame");
@@ -46,7 +46,7 @@ pub fn parse_backtrace(v: Vec<(mi::Variable, mi::Value)>) -> Option<Backtrace> {
     Some(Backtrace(frames))
 }
 
-pub fn parse_breakpoint(v: HashMap<mi::Variable, mi::Value>) -> Option<Breakpoint> {
+pub fn parse_breakpoint(v: HashMap<mi::Var, mi::Value>) -> Option<Breakpoint> {
     let number = v.get("number")?.get_const_ref()?.parse::<u32>().ok()?;
     let type_ = {
         guard!(v.get("type")?.get_const_ref()? == "breakpoint");

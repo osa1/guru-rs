@@ -1,15 +1,15 @@
-pub use super::syntax_common::*;
-
 use std::collections::HashMap;
+
+pub type Var = String;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Value {
     Const(String),
-    Tuple(HashMap<Variable, Value>),
+    Tuple(HashMap<Var, Value>),
     ValueList(Vec<Value>),
-    // NOTE: Do not make this a HashMap<Variable, Value>! A result list may contain same variable
+    // NOTE: Do not make this a HashMap<Var, Value>! A result list may contain same variable
     // multiple times.
-    ResultList(Vec<(Variable, Value)>),
+    ResultList(Vec<(Var, Value)>),
 }
 
 impl Value {
@@ -27,14 +27,14 @@ impl Value {
         }
     }
 
-    pub fn get_tuple(self) -> Option<HashMap<Variable, Value>> {
+    pub fn get_tuple(self) -> Option<HashMap<Var, Value>> {
         match self {
             Value::Tuple(m) => Some(m),
             _ => None,
         }
     }
 
-    pub fn get_result_list(self) -> Option<Vec<(Variable, Value)>> {
+    pub fn get_result_list(self) -> Option<Vec<(Var, Value)>> {
         match self {
             Value::ResultList(v) => Some(v),
             _ => None,
@@ -70,9 +70,9 @@ impl ResultOrOOB {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Result {
-    pub token: Option<Token>,
+    pub token: Option<u64>,
     pub class: ResultClass,
-    pub results: HashMap<Variable, Value>,
+    pub results: HashMap<Var, Value>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -96,7 +96,7 @@ pub enum OutOfBandResult {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct AsyncRecord {
-    pub token: Option<Token>,
+    pub token: Option<u64>,
     pub class: String,
-    pub results: HashMap<Variable, Value>,
+    pub results: HashMap<Var, Value>,
 }
