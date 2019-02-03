@@ -1,6 +1,7 @@
 use crate::gdb;
 use crate::mi;
 use crate::parsers;
+use crate::types::WatchpointType;
 use crate::widgets;
 
 use gio::prelude::*;
@@ -15,6 +16,7 @@ struct AppInner {
     // Widgets
     threads_w: widgets::ThreadsW,
     breakpoints_w: widgets::BreakpointsW,
+    watchpoints_w: widgets::WatchpointsW,
     gdb_w: widgets::GdbW,
     // GDB driver
     gdb: Option<gdb::GDB>,
@@ -35,7 +37,8 @@ impl App {
 
         // Current layout:
         // horiz(1) ->
-        //   [ vert(1) -> [ vert(2) -> [ currently_empty, gdb logs ], breakpoints ]
+        //   [ vert(1) -> [ vert(2) -> [ currently_empty, gdb logs ],
+        //                  flow box -> [ breakpoints, watchpoints ] ]
         //   , threads
         //   ]
 
@@ -51,8 +54,20 @@ impl App {
         let gdb_w = widgets::GdbW::new();
         vert2.pack2(gdb_w.get_widget(), true, false);
 
+        let flow_box = gtk::FlowBox::new();
+        flow_box.set_homogeneous(false);
+        flow_box.set_vexpand(true);
+        flow_box.set_hexpand(true);
+        flow_box.set_row_spacing(0);
+        flow_box.set_column_spacing(0);
+        flow_box.set_max_children_per_line(2);
+        vert1.pack2(&flow_box, true, true);
+
         let breakpoints_w = widgets::BreakpointsW::new();
-        vert1.pack2(breakpoints_w.get_widget(), true, false);
+        flow_box.insert(breakpoints_w.get_widget(), 0);
+
+        let watchpoints_w = widgets::WatchpointsW::new();
+        flow_box.insert(watchpoints_w.get_widget(), 1);
 
         let threads_w = widgets::ThreadsW::new();
         horiz1.pack2(threads_w.get_widget(), true, true);
@@ -62,6 +77,7 @@ impl App {
         let app = App(Rc::new(RefCell::new(AppInner {
             threads_w,
             breakpoints_w,
+            watchpoints_w,
             gdb_w,
             gdb: None,
             token: 0,
@@ -96,6 +112,20 @@ impl App {
                         .0
                         .borrow_mut()
                         .breakpoint_added(location, condition);
+                }));
+        }
+
+        //
+        // Connect "watchpoint added" (the "watchpoint breakpoint" form in the watchpoint list)
+        //
+
+        {
+            let app_clone = app.clone();
+            app.0
+                .borrow_mut()
+                .watchpoints_w
+                .connect_watchpoint_added(Box::new(move |expr, type_| {
+                    app_clone.0.borrow_mut().watchpoint_added(expr, type_);
                 }));
         }
 
@@ -270,6 +300,42 @@ impl AppInner {
                     let bkpt = some!(bkpt.get_tuple());
                     let bkpt = some!(parsers::parse_breakpoint(bkpt));
                     app_inner.breakpoints_w.add_or_update_breakpoint(&bkpt);
+                }),
+            );
+        }
+    }
+
+    fn watchpoint_added(&mut self, expr: String, type_: WatchpointType) {
+        // TODO: Same as above
+        let token = self.get_token();
+        if let Some(ref mut gdb) = self.gdb {
+            let mode = match type_ {
+                WatchpointType::ReadWrite => "-a",
+                WatchpointType::Read => "-r",
+                WatchpointType::Write => "",
+            };
+            writeln!(gdb.stdin(), "{}-break-watch {} \"{}\"", token, mode, expr).unwrap();
+            self.callbacks.insert(
+                token,
+                Box::new(move |app_inner, app, mut result| {
+                    if result.class == mi::ResultClass::Done {
+                        // This message doesn't have enough information so we move the info from
+                        // the args
+                        let results = result.results;
+                        for (k, v) in results.into_iter() {
+                            if let Some(mut tuple) = v.get_tuple() {
+                                if let Some(id) = tuple.remove("number") {
+                                    let id = some!(some!(id.get_const()).parse::<u32>().ok());
+                                    app_inner.watchpoints_w.add_watchpoint(
+                                        id,
+                                        expr.as_str(),
+                                        type_,
+                                    );
+                                    return;
+                                }
+                            }
+                        }
+                    }
                 }),
             );
         }

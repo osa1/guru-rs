@@ -10,7 +10,7 @@ use crate::types::{Breakpoint, BreakpointDisposition, BreakpointType};
 use crate::widgets::breakpoint_add::BreakpointAddW;
 
 pub struct BreakpointsW {
-    // scrolled -> box -> [tree view, image (plus icon)]
+    // scrolled -> box -> [tree view, button ("Add breakpoints")]
     widget: gtk::ScrolledWindow,
     model: gtk::ListStore,
     view: gtk::TreeView,
@@ -69,7 +69,7 @@ impl BreakpointsW {
         //
 
         let scrolled = gtk::ScrolledWindow::new(gtk::NONE_ADJUSTMENT, gtk::NONE_ADJUSTMENT);
-        scrolled.set_policy(gtk::PolicyType::Automatic, gtk::PolicyType::Automatic);
+        scrolled.set_policy(gtk::PolicyType::Never, gtk::PolicyType::Automatic);
 
         let box_ = gtk::Box::new(gtk::Orientation::Vertical, 0);
         box_.set_baseline_position(gtk::BaselinePosition::Top);
@@ -245,7 +245,7 @@ fn mk_enabled_col(bp: &Breakpoint) -> gtk::Value {
 }
 
 fn mk_number_col(bp: &Breakpoint) -> gtk::Value {
-    format!("{}", bp.number).to_value()
+    format!("#{}", bp.number).to_value()
 }
 
 fn mk_location_col(bp: &Breakpoint) -> gtk::Value {

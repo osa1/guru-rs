@@ -62,6 +62,24 @@ pub enum BreakpointDisposition {
 }
 
 //
+// Watchpoint stuff
+//
+
+#[derive(Debug)]
+pub struct Watchpoint {
+    pub number: u32,
+    pub expr: String,
+    pub type_: WatchpointType,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum WatchpointType {
+    ReadWrite,
+    Read,
+    Write,
+}
+
+//
 // Backtrace stuff
 //
 

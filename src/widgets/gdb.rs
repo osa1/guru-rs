@@ -20,7 +20,9 @@ pub struct GdbW {
 
 // CSS for the entry
 static ENTRY_STYLE: &'static str = "
-    .monospace { font-family: monospace; }
+    .monospace {
+        font-family: monospace;
+    }
     entry {
         border-top-style: dashed;
         border-right-style: none;
