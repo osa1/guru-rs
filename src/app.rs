@@ -116,6 +116,20 @@ impl App {
         }
 
         //
+        // Connect "watchpoint enabled" (the toggle buttons in watchpoint list)
+        //
+
+        {
+            let app_clone = app.clone();
+            app.0
+                .borrow_mut()
+                .watchpoints_w
+                .connect_watchpoint_enabled(Box::new(move |wp_id, enable| {
+                    app_clone.0.borrow_mut().watchpoint_toggled(wp_id, enable);
+                }));
+        }
+
+        //
         // Connect "watchpoint added" (the "watchpoint breakpoint" form in the watchpoint list)
         //
 
@@ -271,6 +285,27 @@ impl AppInner {
                 Box::new(move |app_inner, app, result| {
                     // TODO: Check if the result class is "Done"
                     app_inner.breakpoints_w.toggle_breakpoint(bp_id, enable)
+                }),
+            );
+        }
+    }
+
+    fn watchpoint_toggled(&mut self, bp_id: u32, enable: bool) {
+        // TODO: We should get token if gdb is available, but can't move this below as it borrowchk
+        // still not smart enough.
+        let token = self.get_token();
+        if let Some(ref mut gdb) = self.gdb {
+            let stdin = gdb.stdin();
+            if enable {
+                writeln!(stdin, "{}-break-enable {}", token, bp_id).unwrap();
+            } else {
+                writeln!(stdin, "{}-break-disable {}", token, bp_id).unwrap();
+            }
+            self.callbacks.insert(
+                token,
+                Box::new(move |app_inner, app, result| {
+                    // TODO: Check if the result class is "Done"
+                    app_inner.watchpoints_w.toggle_watchpoint(bp_id, enable)
                 }),
             );
         }

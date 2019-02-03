@@ -122,6 +122,50 @@ impl WatchpointsW {
         self.add_wp.connect_watchpoint_added(cb)
     }
 
+    pub fn connect_watchpoint_enabled(
+        &self,
+        cb: Box<Fn(u32, bool /* true => enable, false => disable */)>,
+    ) {
+        let model = self.model.clone(); // TODO: I hope this is just a refcount bump?
+        self.wp_enabled_renderer.connect_toggled(move |_w, path| {
+            let iter = model.get_iter(&path).unwrap();
+            let old_enabled = model
+                .get_value(&iter, Cols::Enabled as i32)
+                .get::<bool>()
+                .unwrap();
+            let bp_id = model
+                .get_value(&iter, Cols::Number as i32)
+                .get::<String>()
+                .unwrap()
+                .parse::<u32>()
+                .unwrap();
+            cb(bp_id, !old_enabled);
+        });
+    }
+
+    pub fn toggle_watchpoint(&self, wp_id: u32, enable: bool) {
+        // find the row for the row with given breakpoint id
+        if let Some(iter) = self.model.get_iter_first() {
+            loop {
+                let wp_id_ = self
+                    .model
+                    .get_value(&iter, Cols::Number as i32)
+                    .get::<String>()
+                    .unwrap()
+                    .parse::<u32>()
+                    .unwrap();
+                if wp_id_ == wp_id {
+                    self.model
+                        .set_value(&iter, Cols::Enabled as u32, &enable.to_value());
+                    return;
+                }
+                if !self.model.iter_next(&iter) {
+                    break;
+                }
+            }
+        }
+    }
+
     /// ONLY USE TO ADD THIS TO CONTAINERS!
     pub fn get_widget(&self) -> &gtk::Widget {
         self.widget.upcast_ref()
