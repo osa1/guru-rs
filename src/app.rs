@@ -253,10 +253,11 @@ impl App {
 // TODO find a better name
 macro_rules! some {
     ( $x:expr ) => {
-        if let Some(ret) = $x {
-            ret
-        } else {
-            return;
+        match $x {
+            Some(ret) => ret,
+            None => {
+                return;
+            }
         }
     };
 }

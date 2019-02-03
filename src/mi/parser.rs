@@ -234,7 +234,7 @@ fn parse_async_record(mut s: &str) -> Option<(AsyncRecord, &str)> {
                 return Some((
                     AsyncRecord {
                         token: None,
-                        class: class,
+                        class,
                         results: HashMap::new(),
                     },
                     s,
@@ -250,7 +250,7 @@ fn parse_async_record(mut s: &str) -> Option<(AsyncRecord, &str)> {
         class
     };
     let mut results = HashMap::new();
-    while s.chars().next() == Some(',') {
+    while s.starts_with(',') {
         let ((var, val), s_) = parse_result(&s[','.len_utf8()..])?;
         s = s_;
         assert!(!results.contains_key(&var));
@@ -285,12 +285,10 @@ fn parse_variable(s: &str) -> Option<(Var, &str)> {
         if c != '=' && c != ',' && !c.is_whitespace() {
             ret.push(c);
             c_idx += c.len_utf8();
+        } else if ret.is_empty() {
+            return None;
         } else {
-            if ret.is_empty() {
-                return None;
-            } else {
-                break;
-            }
+            break;
         }
     }
     Some((ret, &s[c_idx..]))
@@ -406,14 +404,12 @@ fn parse_string(mut s: &str) -> Option<(String, &str)> {
                 output.push(c);
             }
             escape = false;
+        } else if c == '\\' {
+            escape = true;
+        } else if c == '"' {
+            break;
         } else {
-            if c == '\\' {
-                escape = true;
-            } else if c == '"' {
-                break;
-            } else {
-                output.push(c);
-            }
+            output.push(c);
         }
     }
     s = &s[c_idx..];

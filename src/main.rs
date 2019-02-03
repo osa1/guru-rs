@@ -28,10 +28,7 @@ fn build_ui(gtk_app: &gtk::Application) {
 
     // Currently all args are considered gdb args and passed to gdb as --args, e.g.
     // $ gdb --args <program args>
-    let gdb_args = std::env::args()
-        .into_iter()
-        .skip(1)
-        .collect::<Vec<String>>();
+    let gdb_args = std::env::args().skip(1).collect::<Vec<String>>();
     println!("args: {:?}", gdb_args);
 
     // Connect to gdb with no args, for testing
