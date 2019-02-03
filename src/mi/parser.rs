@@ -423,7 +423,7 @@ fn parse_string(mut s: &str) -> Option<(String, &str)> {
 #[test]
 fn parse_token_tests() {
     assert_eq!(parse_token(""), None);
-    assert_eq!(parse_token("123*"), Some(("123".to_string(), "*")));
+    assert_eq!(parse_token("123*"), Some((123, "*")));
     assert_eq!(parse_token("*"), None);
 }
 
@@ -474,7 +474,7 @@ fn parse_out_of_band_tests() {
             OutOfBandResult::NotifyAsyncRecord(AsyncRecord {
                 token: None,
                 class: "thread-group-added".to_string(),
-                results: vec![]
+                results: HashMap::new(),
             }),
             ""
         ))
@@ -486,6 +486,8 @@ fn parse_out_of_band_tests() {
                 token: None,
                 class: "thread-group-added".to_string(),
                 results: vec![("id".to_string(), Value::Const("i1".to_string()))]
+                    .into_iter()
+                    .collect()
             }),
             ""
         ))
@@ -497,6 +499,8 @@ fn parse_out_of_band_tests() {
                 token: None,
                 class: "running".to_string(),
                 results: vec![("thread-id".to_string(), Value::Const("5".to_string()))]
+                    .into_iter()
+                    .collect()
             }),
             ""
         ))
@@ -509,7 +513,9 @@ fn parse_output_tests() {
         AsyncRecord {
             token: None,
             class: "thread-group-added".to_string(),
-            results: vec![("id".to_string(), Value::Const("i1".to_string()))],
+            results: vec![("id".to_string(), Value::Const("i1".to_string()))]
+                .into_iter()
+                .collect(),
         },
     ))];
     assert_eq!(parse_output("=thread-group-added,id=\"i1\"\n"), Some(out));
@@ -524,7 +530,9 @@ fn parse_output_tests() {
                     Value::Const("history save".to_string()),
                 ),
                 ("value".to_string(), Value::Const("on".to_string())),
-            ],
+            ]
+            .into_iter()
+            .collect(),
         },
     ))];
     assert_eq!(
