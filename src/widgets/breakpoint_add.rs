@@ -26,7 +26,8 @@ impl BreakpointAddW {
         //
 
         let button = gtk::Button::new_from_icon_name("gtk-add", gtk::IconSize::SmallToolbar);
-        button.set_label("New breakpoint");
+        button.set_use_underline(true);
+        button.set_label("New _breakpoint");
         button.set_halign(gtk::Align::Start);
 
         //
