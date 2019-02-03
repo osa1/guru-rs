@@ -106,7 +106,7 @@ pub fn parse_breakpoint(v: HashMap<mi::Var, mi::Value>) -> Option<Breakpoint> {
 
 // >>> -data-disassemble -f <file> -l <line> -n -1 -- 0
 // Key: asm_insns, value: list of tuples (input to this function)
-pub fn parse_asm_insts(insts: Vec<mi::Value>) -> Option<Vec<AsmInst>> {
+pub fn _parse_asm_insts(insts: Vec<mi::Value>) -> Option<Vec<AsmInst>> {
     let mut ret = vec![];
     for inst in insts {
         let mut inst = inst.get_tuple()?;

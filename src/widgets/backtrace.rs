@@ -1,9 +1,8 @@
 //! A `TreeView` for rendering backtraces.
 
-use gio::prelude::*;
 use gtk::prelude::*;
 
-use crate::types::{Backtrace, Frame};
+use crate::types::Backtrace;
 
 pub struct BacktraceW {
     model: gtk::ListStore,

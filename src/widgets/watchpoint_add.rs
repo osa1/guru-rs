@@ -1,6 +1,5 @@
 //! Similar to `BreakPointAddW`
 
-use gio::prelude::*;
 use gtk::prelude::*;
 
 use std::cell::RefCell;
@@ -15,9 +14,6 @@ type WatchpointAddCb = Rc<RefCell<Option<Box<Fn(String, WatchpointType)>>>>;
 
 pub struct WatchpointAddW {
     button: gtk::Button,
-    // grid -> [ [ expression label, expression entry],
-    //           [ type label, combo box ] ]
-    grid: gtk::Grid,
     cb: WatchpointAddCb,
 }
 
@@ -36,6 +32,8 @@ impl WatchpointAddW {
         // Initialize the entries
         //
 
+        // grid -> [ [ expression label, expression entry],
+        //           [ type label, combo box ] ]
         let grid = gtk::Grid::new();
         let expression_label = gtk::Label::new("Expression");
         let expression_entry = gtk::Entry::new();
@@ -109,7 +107,7 @@ impl WatchpointAddW {
             };
         });
 
-        WatchpointAddW { button, grid, cb }
+        WatchpointAddW { button, cb }
     }
 
     pub fn get_widget(&self) -> &gtk::Widget {

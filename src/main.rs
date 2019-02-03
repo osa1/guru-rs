@@ -12,10 +12,6 @@ mod types;
 mod widgets;
 
 use gio::prelude::*;
-use gtk::prelude::*;
-
-use std::cell::RefCell;
-use std::rc::Rc;
 
 fn main() {
     let application =
@@ -28,7 +24,7 @@ fn main() {
 }
 
 fn build_ui(gtk_app: &gtk::Application) {
-    let mut app = app::App::new(gtk_app);
+    let app = app::App::new(gtk_app);
 
     // Currently all args are considered gdb args and passed to gdb as --args, e.g.
     // $ gdb --args <program args>

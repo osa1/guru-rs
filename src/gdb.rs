@@ -2,7 +2,6 @@
 //! (`mi::output_syntax`).
 
 use std::io::Read;
-use std::os::unix::io::{AsRawFd, RawFd};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::str;
 use std::thread;
@@ -13,7 +12,7 @@ use crate::mi;
 
 pub struct GDB {
     process: Child,
-    message_handler: thread::JoinHandle<()>,
+    _message_handler: thread::JoinHandle<()>,
 }
 
 impl GDB {
@@ -23,7 +22,7 @@ impl GDB {
     /// ```
     /// A spawns that reads gdb stdout and sends parsed mi messages to `msg_sender` will be
     /// spawned.
-    pub fn with_args(mut args0: &[String], mut msg_sender: Sender<mi::Output>) -> GDB {
+    pub fn with_args(args0: &[String], mut msg_sender: Sender<mi::Output>) -> GDB {
         let mut args = vec!["-n".to_string(), "-i=mi".to_string(), "--args".to_string()];
         args.extend_from_slice(args0);
         let mut process = Command::new("gdb")
@@ -40,7 +39,7 @@ impl GDB {
 
         GDB {
             process,
-            message_handler,
+            _message_handler: message_handler,
         }
     }
 
@@ -84,7 +83,7 @@ fn message_handler(stdout: &mut ChildStdout, msg_sender: &mut Sender<mi::Output>
                     }
                     Some(mi_msgs) => {
                         println!("mi message parsed: {:?}", mi_msgs);
-                        msg_sender.send(mi_msgs);
+                        msg_sender.send(mi_msgs).unwrap();
                         msg_bytes.drain(0..idx + MI_MSG_SEP.len());
                     }
                 }

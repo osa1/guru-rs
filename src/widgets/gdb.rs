@@ -1,6 +1,5 @@
 //! A widget to show raw GDB output and to send input directly to it.
 
-use gio::prelude::*;
 use gtk::prelude::*;
 
 // TODOs:

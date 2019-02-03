@@ -1,19 +1,14 @@
 //! A `TreeView` for rendering breakpoints.
 
-use gio::prelude::*;
 use gtk::prelude::*;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-
-use crate::types::{Breakpoint, BreakpointDisposition, BreakpointType};
+use crate::types::Breakpoint;
 use crate::widgets::breakpoint_add::BreakpointAddW;
 
 pub struct BreakpointsW {
     // scrolled -> box -> [tree view, button ("Add breakpoints")]
     widget: gtk::ScrolledWindow,
     model: gtk::ListStore,
-    view: gtk::TreeView,
     bp_enabled_renderer: gtk::CellRendererToggle,
     // "Add breakpoint" widget
     add_bp: BreakpointAddW,
@@ -124,7 +119,6 @@ impl BreakpointsW {
 
         BreakpointsW {
             widget: scrolled,
-            view,
             model,
             bp_enabled_renderer,
             add_bp,

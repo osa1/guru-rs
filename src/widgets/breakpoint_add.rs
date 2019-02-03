@@ -1,7 +1,6 @@
 //! A button for adding new breakpoints. When clicked it turns into two entries for location and
 //! condition of the breakpoint. When submitted it turns back into a "add breakpoint" button.
 
-use gio::prelude::*;
 use gtk::prelude::*;
 
 use std::cell::RefCell;
@@ -13,9 +12,6 @@ type BreakpointAddCb = Rc<RefCell<Option<Box<Fn(String, String)>>>>;
 
 pub struct BreakpointAddW {
     button: gtk::Button,
-    // grid -> [ [ location label, location entry],
-    //           [ condition label, condition entry ] ]
-    grid: gtk::Grid,
     cb: BreakpointAddCb,
 }
 
@@ -34,6 +30,8 @@ impl BreakpointAddW {
         // Initialize the entries
         //
 
+        // grid -> [ [ location label, location entry],
+        //           [ condition label, condition entry ] ]
         let grid = gtk::Grid::new();
         let location_label = gtk::Label::new("Location");
         let condition_label = gtk::Label::new("Condition");
@@ -132,7 +130,7 @@ impl BreakpointAddW {
             }
         });
 
-        BreakpointAddW { button, grid, cb }
+        BreakpointAddW { button, cb }
     }
 
     pub fn get_widget(&self) -> &gtk::Widget {

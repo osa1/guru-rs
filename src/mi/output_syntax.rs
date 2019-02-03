@@ -59,15 +59,6 @@ pub enum ResultOrOOB {
     OOB(OutOfBandResult),
 }
 
-impl ResultOrOOB {
-    pub fn get_result(self) -> Option<Result> {
-        match self {
-            ResultOrOOB::Result(result) => Some(result),
-            ResultOrOOB::OOB(_) => None,
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, Eq)]
 pub struct Result {
     pub token: Option<u64>,

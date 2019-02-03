@@ -4,10 +4,9 @@ use crate::parsers;
 use crate::types::WatchpointType;
 use crate::widgets;
 
-use gio::prelude::*;
 use gtk::prelude::*;
 
-use std::cell::{RefCell, RefMut};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::Write;
 use std::rc::Rc;
@@ -159,7 +158,7 @@ impl App {
     }
 
     pub fn gdb_connect(&self, args: &[String]) {
-        let (mut send, mut recv) = glib::MainContext::channel(glib::source::PRIORITY_DEFAULT);
+        let (send, recv) = glib::MainContext::channel(glib::source::PRIORITY_DEFAULT);
         let gdb = gdb::GDB::with_args(args, send); // TODO errors
         let main_context = glib::MainContext::default();
         {
@@ -242,7 +241,7 @@ impl App {
                 // This should be a bug as the entry should be disabled when we're not connected
                 println!("Can't send mi msg! GDB not available!");
             }
-            Some(mut gdb) => {
+            Some(gdb) => {
                 writeln!(gdb.stdin(), "{}", msg).unwrap();
                 inner.gdb_w.insert_line(&format!(">>> {}", msg));
                 // let _ = gdb.stdin().flush();
@@ -282,7 +281,7 @@ impl AppInner {
             }
             self.callbacks.insert(
                 token,
-                Box::new(move |app_inner, app, result| {
+                Box::new(move |app_inner, _app, _result| {
                     // TODO: Check if the result class is "Done"
                     app_inner.breakpoints_w.toggle_breakpoint(bp_id, enable)
                 }),
@@ -303,7 +302,7 @@ impl AppInner {
             }
             self.callbacks.insert(
                 token,
-                Box::new(move |app_inner, app, result| {
+                Box::new(move |app_inner, _app, _result| {
                     // TODO: Check if the result class is "Done"
                     app_inner.watchpoints_w.toggle_watchpoint(bp_id, enable)
                 }),
@@ -328,7 +327,7 @@ impl AppInner {
             }
             self.callbacks.insert(
                 token,
-                Box::new(move |app_inner, app, result| {
+                Box::new(move |app_inner, _app, result| {
                     let mut results = result.results;
                     // TODO handle errors
                     let bkpt = some!(results.remove("bkpt"));
@@ -352,12 +351,12 @@ impl AppInner {
             writeln!(gdb.stdin(), "{}-break-watch {} \"{}\"", token, mode, expr).unwrap();
             self.callbacks.insert(
                 token,
-                Box::new(move |app_inner, app, mut result| {
+                Box::new(move |app_inner, _app, result| {
                     if result.class == mi::ResultClass::Done {
                         // This message doesn't have enough information so we move the info from
                         // the args
                         let results = result.results;
-                        for (k, v) in results.into_iter() {
+                        for (_k, v) in results.into_iter() {
                             if let Some(mut tuple) = v.get_tuple() {
                                 if let Some(id) = tuple.remove("number") {
                                     let id = some!(some!(id.get_const()).parse::<u32>().ok());
@@ -376,7 +375,7 @@ impl AppInner {
         }
     }
 
-    fn handle_result(&mut self, outer: &App, mut result: mi::Result) {
+    fn handle_result(&mut self, outer: &App, result: mi::Result) {
         if let Some(ref token) = result.token {
             match self.callbacks.remove(&token) {
                 None => {
@@ -389,7 +388,7 @@ impl AppInner {
         }
     }
 
-    fn handle_async_result(&mut self, outer: &App, mut async_: mi::AsyncRecord) {
+    fn handle_async_result(&mut self, _outer: &App, mut async_: mi::AsyncRecord) {
         match async_.class.as_str() {
             "breakpoint-created" | "breakpoint-modified" => {
                 let bkpt = some!(async_.results.remove("bkpt"));
@@ -400,8 +399,8 @@ impl AppInner {
             "stopped" => {
                 // Execution stopped. Update threads.
                 let token = self.get_token();
-                let mut gdb = some!(self.gdb.as_mut());
-                writeln!(gdb.stdin(), "{}-thread-info", token);
+                let gdb = some!(self.gdb.as_mut());
+                writeln!(gdb.stdin(), "{}-thread-info", token).unwrap();
                 self.threads_w.clear();
                 self.callbacks.insert(token, Box::new(thread_info_cb));
             }
@@ -410,7 +409,7 @@ impl AppInner {
     }
 }
 
-fn thread_info_cb(inner: &mut AppInner, outer: &App, mut result: mi::Result) {
+fn thread_info_cb(inner: &mut AppInner, _outer: &App, mut result: mi::Result) {
     // [RESULT] Done: current-thread-id = 1, threads = [{core = 4, frame = {level = 0, file = ../sysdeps/unix/sysv/linux/write.c, fullname = /build/glibc-OTsEL5/glibc-2.27/nptl/../sysdeps/unix/sysv/linux/write.c, func = __libc_write, addr = 0x00007ffff591e2b7, args = [{value = 11, name = fd}, {value = 0x555555d44860, name = buf}, {value = 4, name = nbytes}], line = 27}, state = stopped, target-id = Thread 0x7ffff7fbdb80 (LWP 19785), id = 1, name = guru}, {id = 2, target-id = Thread 0x7fffed538700 (LWP 19789), frame = {fullname = /build/glibc-OTsEL5/glibc-2.27/io/../sysdeps/unix/sysv/linux/poll.c, addr = 0x00007ffff5418bf9, func = __GI___poll, file = ../sysdeps/unix/sysv/linux/poll.c, args = [{value = 0x55555592e740, name = fds}, {value = 1, name = nfds}, {name = timeout, value = -1}], line = 29, level = 0}, state = stopped, core = 4, name = gmain}, {name = gdbus, state = stopped, target-id = Thread 0x7fffecd37700 (LWP 19790), id = 3, frame = {level = 0, func = __GI___poll, line = 29, args = [{value = 0x555555942bf0, name = fds}, {value = 2, name = nfds}, {value = -1, name = timeout}], addr = 0x00007ffff5418bf9, file = ../sysdeps/unix/sysv/linux/poll.c, fullname = /build/glibc-OTsEL5/glibc-2.27/io/../sysdeps/unix/sysv/linux/poll.c}, core = 1}, {target-id = Thread 0x7fffe778e700 (LWP 19792), core = 7, id = 5, name = pool, frame = {args = [], func = syscall, level = 0, file = ../sysdeps/unix/sysv/linux/x86_64/syscall.S, fullname = /build/glibc-OTsEL5/glibc-2.27/misc/../sysdeps/unix/sysv/linux/x86_64/syscall.S, addr = 0x00007ffff541f839, line = 38}, state = stopped}]
     if result.class != mi::ResultClass::Done {
         return;
@@ -427,13 +426,14 @@ fn thread_info_cb(inner: &mut AppInner, outer: &App, mut result: mi::Result) {
             str::parse::<i32>(thread.remove("id").unwrap().get_const_ref().unwrap()).unwrap();
         let target_id = thread.remove("target-id").unwrap().get_const().unwrap();
         let token = inner.get_token();
-        let mut gdb = inner.gdb.as_mut().unwrap();
+        let gdb = inner.gdb.as_mut().unwrap();
         writeln!(
             gdb.stdin(),
             "{}-stack-list-frames --thread {}",
             token,
             thread_id
-        );
+        )
+        .unwrap();
         inner.callbacks.insert(
             token,
             Box::new(move |inner, outer, result| {
@@ -445,7 +445,7 @@ fn thread_info_cb(inner: &mut AppInner, outer: &App, mut result: mi::Result) {
 
 fn thread_stack_cb(
     inner: &mut AppInner,
-    outer: &App,
+    _outer: &App,
     mut result: mi::Result,
     thread_id: i32,
     target_id: &str,
@@ -459,6 +459,8 @@ fn thread_stack_cb(
         .unwrap();
     let bt = parsers::parse_backtrace(bt).unwrap();
     inner.threads_w.add_thread(thread_id, target_id, &bt);
+    // TODO: Doing this on every update is not a good idea!
+    inner.threads_w.reset_cols();
 }
 
 fn render_async_record(async_: &mi::AsyncRecord) -> String {
@@ -526,11 +528,11 @@ fn render_value(val: &mi::Value) -> String {
 fn render_result(result: &mi::Result) -> String {
     let mut ret = String::new();
     ret.push_str(match &result.class {
-        Done => "Done",
-        Running => "Running",
-        Connected => "Connected",
-        Error => "Error",
-        Exit => "Exit",
+        mi::ResultClass::Done => "Done",
+        mi::ResultClass::Running => "Running",
+        mi::ResultClass::Connected => "Connected",
+        mi::ResultClass::Error => "Error",
+        mi::ResultClass::Exit => "Exit",
     });
     if result.results.is_empty() {
         return ret;

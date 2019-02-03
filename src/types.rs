@@ -52,6 +52,7 @@ pub struct Breakpoint {
 #[derive(Debug, PartialEq, Eq)]
 pub enum BreakpointType {
     Breakpoint,
+    #[allow(dead_code)]
     Watchpoint,
 }
 
@@ -66,6 +67,7 @@ pub enum BreakpointDisposition {
 //
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct Watchpoint {
     pub number: u32,
     pub expr: String,
@@ -115,6 +117,7 @@ pub struct Frame {
 
 /// An assembly instruction. Output by commands like `-data-disassemble`.
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct AsmInst {
     // TODO: Not sure what this is
     pub offset: usize,

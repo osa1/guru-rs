@@ -1,23 +1,20 @@
-use gio::prelude::*;
+// TODO: Make "type" column editable
+
 use gtk::prelude::*;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-
-use crate::types::{Watchpoint, WatchpointType};
+use crate::types::WatchpointType;
 use crate::widgets::watchpoint_add::WatchpointAddW;
 
 pub struct WatchpointsW {
     // scrolled -> box -> [tree view, button ("Add watchpoint")
     widget: gtk::ScrolledWindow,
     model: gtk::ListStore,
-    view: gtk::TreeView,
     wp_enabled_renderer: gtk::CellRendererToggle,
     add_wp: WatchpointAddW,
 }
 
 /// Number of columns
-const NUM_COLS: usize = 5;
+const NUM_COLS: usize = 6;
 
 /// Column indices for cell renderers
 #[repr(i32)]
@@ -27,6 +24,8 @@ enum Cols {
     Number,
     // Expression, e.g. "((struct foo*)0x123)->bar"
     Expr,
+    // "r" for read, "w" for write, "rw" for read+write
+    Type,
     // Current value of the expression
     Value,
     // Number of hits so far
@@ -38,12 +37,13 @@ static COL_TYPES: [gtk::Type; NUM_COLS] = [
     gtk::Type::Bool,   // enabled
     gtk::Type::String, // number
     gtk::Type::String, // expr
+    gtk::Type::String, // type
     gtk::Type::String, // value
     gtk::Type::String, // hits
 ];
 
 /// Column indices for when inserting rows into the list store
-static COL_INDICES: [u32; NUM_COLS] = [0, 1, 2, 3, 4];
+static COL_INDICES: [u32; NUM_COLS] = [0, 1, 2, 3, 4, 5];
 
 impl WatchpointsW {
     pub fn new() -> WatchpointsW {
@@ -106,12 +106,12 @@ impl WatchpointsW {
 
         add_col("Number", Cols::Number, false);
         add_col("Expression", Cols::Expr, true);
+        add_col("Type", Cols::Type, false);
         add_col("Value", Cols::Value, false);
         add_col("Hits", Cols::Hits, false);
 
         WatchpointsW {
             widget: scrolled,
-            view,
             model,
             wp_enabled_renderer,
             add_wp,
@@ -171,11 +171,21 @@ impl WatchpointsW {
         self.widget.upcast_ref()
     }
 
-    pub fn add_watchpoint(&self, id: u32, expr: &str, type_: WatchpointType) {
+    pub fn add_watchpoint(
+        &self,
+        id: u32,
+        expr: &str,
+        type_: WatchpointType, /* TODO: show watchpoint type */
+    ) {
         let values: [&dyn gtk::ToValue; NUM_COLS] = [
             &true.to_value(),
             &format!("{}", id).to_value(),
             &expr.to_value(),
+            &match type_ {
+                WatchpointType::ReadWrite => "rw".to_value(),
+                WatchpointType::Read => "r".to_value(),
+                WatchpointType::Write => "w".to_value(),
+            },
             &"".to_value(),
             &"0".to_value(),
         ];

@@ -1,6 +1,5 @@
 //! A scrolled widget that shows thread backtraces.
 
-use gio::prelude::*;
 use gtk::prelude::*;
 
 use crate::types::Backtrace;
@@ -83,13 +82,6 @@ impl ThreadsW {
         println!("{} {} {} {}", max_1, max_2, max_3, max_4);
         for t in &self.threads {
             t.set_col_widths(max_1, max_2, max_3, max_4);
-        }
-    }
-
-    /// gdb started running, keep threads but clear thread states (backtraces).
-    pub fn enter_running_state(&mut self) {
-        for thread in &self.threads {
-            thread.clear();
         }
     }
 }
