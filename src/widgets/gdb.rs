@@ -85,19 +85,23 @@ impl GdbW {
         self.widget.upcast_ref()
     }
 
-    /// NOTE: Inserts a newline if the str doesn't end with a newline.
     pub fn insert_line(&self, str: &str) {
-        let mut end_iter = self.text_view.get_buffer().unwrap().get_end_iter();
-        self.text_view
-            .get_buffer()
-            .unwrap()
-            .insert_markup(&mut end_iter, str);
-        if !str.is_empty() && &str[str.len() - 1..str.len()] != "\n" {
-            let mut end_iter = self.text_view.get_buffer().unwrap().get_end_iter();
-            self.text_view
-                .get_buffer()
-                .unwrap()
-                .insert_markup(&mut end_iter, "\n");
+        // FIXME: Somehow this becomes false after first scrolling
+        let scroll_to_bottom = self.should_scroll_to_bottom();
+
+        // Insert a new line if text buffer is not empty
+        let text_buffer = self.text_view.get_buffer().unwrap();
+        let mut end_iter = text_buffer.get_end_iter();
+        if text_buffer.get_line_count() != 0 {
+            text_buffer.insert_markup(&mut end_iter, "\n");
+        }
+
+        // Insert the text
+        text_buffer.insert_markup(&mut end_iter, str.trim());
+
+        if scroll_to_bottom {
+            self.scroll_to_bottom();
+            assert!(self.should_scroll_to_bottom());
         }
     }
 
@@ -113,5 +117,31 @@ impl GdbW {
 
     pub fn enter_connected_state(&self) {
         self.entry.set_sensitive(true);
+    }
+
+    fn should_scroll_to_bottom(&self) -> bool {
+        // If the user adjusted the scroll bar then we don't scroll to the end. Otherwise we do.
+        // Code taken from https://mail.gnome.org/archives/gtk-list/2011-August/msg00034.html and I
+        // don't understand how it works.
+        let adjustment = self.text_view.get_vadjustment().unwrap();
+        let value: f64 = adjustment.get_value();
+        let upper: f64 = adjustment.get_upper();
+        let page_size: f64 = adjustment.get_page_size();
+        let rhs = upper - page_size - 1e-12;
+        let ret = value >= rhs;
+        println!(
+            "value: {}, upper: {}, page_size: {} (upper - page_size - 1e-12): {}, ret {}",
+            value, upper, page_size, rhs, ret
+        );
+        ret
+    }
+
+    fn scroll_to_bottom(&self) {
+        let text_buffer = self.text_view.get_buffer().unwrap();
+        let last_line_iter = text_buffer.get_iter_at_line(text_buffer.get_line_count());
+        let last_line_mark = text_buffer
+            .create_mark("end", &last_line_iter, false /* left gravity */)
+            .unwrap();
+        self.text_view.scroll_mark_onscreen(&last_line_mark);
     }
 }
