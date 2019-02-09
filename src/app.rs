@@ -72,7 +72,6 @@ impl App {
         horiz1.pack2(threads_w.get_widget(), true, true);
 
         window.show_all();
-
         let app = App(Rc::new(RefCell::new(AppInner {
             threads_w,
             breakpoints_w,
@@ -461,7 +460,7 @@ fn thread_stack_cb(
     let bt = parsers::parse_backtrace(bt).unwrap();
     inner.threads_w.add_thread(thread_id, target_id, &bt);
     // TODO: Doing this on every update is not a good idea!
-    inner.threads_w.reset_cols();
+    // inner.threads_w.reset_cols();
 }
 
 fn render_async_record(async_: &mi::AsyncRecord) -> String {
