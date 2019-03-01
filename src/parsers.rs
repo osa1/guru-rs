@@ -104,6 +104,23 @@ pub fn parse_breakpoint(v: HashMap<mi::Var, mi::Value>) -> Option<Breakpoint> {
     })
 }
 
+/// Parse results of a `-var-create` command or a `child` in a `children` list in a
+/// `-var-list-children --all-values` result.
+pub fn parse_expr(mut v: HashMap<mi::Var, mi::Value>) -> Option<Value> {
+    let expr = v.remove("exp")?.get_const()?;
+    let value = v.remove("value")?.get_const()?;
+    let name = v.remove("name")?.get_const()?;
+    let type_ = v.remove("type")?.get_const()?;
+    let n_children = v.remove("numchild")?.get_const()?.parse::<usize>().ok()?;
+    Some(Value {
+        expr,
+        value,
+        name,
+        type_,
+        n_children,
+    })
+}
+
 // >>> -data-disassemble -f <file> -l <line> -n -1 -- 0
 // Key: asm_insns, value: list of tuples (input to this function)
 pub fn _parse_asm_insts(insts: Vec<mi::Value>) -> Option<Vec<AsmInst>> {

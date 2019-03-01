@@ -112,6 +112,19 @@ pub struct Frame {
 }
 
 //
+// Value/expression stuff
+//
+
+#[derive(Debug)]
+pub struct Value {
+    pub expr: String,
+    pub value: String,
+    pub name: String,
+    pub type_: String,
+    pub n_children: usize,
+}
+
+//
 // Disassembly stuff
 //
 
