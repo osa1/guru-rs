@@ -15,7 +15,8 @@ struct AppInner {
     // Widgets
     threads_w: widgets::ThreadsW,
     breakpoints_w: widgets::BreakpointsW,
-    watchpoints_w: widgets::WatchpointsW,
+    // watchpoints_w: widgets::WatchpointsW,
+    expression_w: widgets::ExpressionW,
     gdb_w: widgets::GdbW,
     // GDB driver
     gdb: Option<gdb::GDB>,
@@ -37,7 +38,7 @@ impl App {
         // Current layout:
         // horiz(1) ->
         //   [ vert(1) -> [ vert(2) -> [ currently_empty, gdb logs ],
-        //                  flow box -> [ breakpoints, watchpoints ] ]
+        //                  flow box -> [ breakpoints, /* watchpoints */ expressions ] ]
         //   , threads
         //   ]
 
@@ -65,8 +66,54 @@ impl App {
         let breakpoints_w = widgets::BreakpointsW::new();
         flow_box.insert(breakpoints_w.get_widget(), 0);
 
-        let watchpoints_w = widgets::WatchpointsW::new();
-        flow_box.insert(watchpoints_w.get_widget(), 1);
+        let mut expression_w = widgets::ExpressionW::new();
+        flow_box.insert(expression_w.get_widget(), 1);
+        // let watchpoints_w = widgets::WatchpointsW::new();
+        // flow_box.insert(watchpoints_w.get_widget(), 1);
+
+        // Add some data for testing
+        expression_w.add(
+            "var1".to_string(),
+            "MainCapability".to_string(),
+            None,
+            "Capability".to_string(),
+            true,
+        );
+        expression_w.add(
+            "var2".to_string(),
+            "n_capabilities".to_string(),
+            Some("0".to_string()),
+            "unsigned int".to_string(),
+            false,
+        );
+        expression_w.add(
+            "var1.f".to_string(),
+            "f".to_string(),
+            None,
+            "StgFunTable".to_string(),
+            true,
+        );
+        expression_w.add(
+            "var1.r".to_string(),
+            "r".to_string(),
+            None,
+            "StgRegTable".to_string(),
+            true,
+        );
+        expression_w.add(
+            "var1.r.x".to_string(),
+            "x".to_string(),
+            None,
+            "int".to_string(),
+            true,
+        );
+        // expression_w.add(
+        //     "var1.r.y".to_string(),
+        //     "y".to_string(),
+        //     None,
+        //     "int".to_string(),
+        //     true,
+        // );
 
         let threads_w = widgets::ThreadsW::new();
         horiz1.pack2(threads_w.get_widget(), true, true);
@@ -75,7 +122,8 @@ impl App {
         let app = App(Rc::new(RefCell::new(AppInner {
             threads_w,
             breakpoints_w,
-            watchpoints_w,
+            // watchpoints_w,
+            expression_w,
             gdb_w,
             gdb: None,
             token: 0,
@@ -117,6 +165,7 @@ impl App {
         // Connect "watchpoint enabled" (the toggle buttons in watchpoint list)
         //
 
+        /*
         {
             let app_clone = app.clone();
             app.0
@@ -126,11 +175,13 @@ impl App {
                     app_clone.0.borrow_mut().watchpoint_toggled(wp_id, enable);
                 }));
         }
+        */
 
         //
         // Connect "watchpoint added" (the "watchpoint breakpoint" form in the watchpoint list)
         //
 
+        /*
         {
             let app_clone = app.clone();
             app.0
@@ -140,6 +191,7 @@ impl App {
                     app_clone.0.borrow_mut().watchpoint_added(expr, type_);
                 }));
         }
+        */
 
         //
         // Connect gdb raw input entry
@@ -289,6 +341,7 @@ impl AppInner {
         }
     }
 
+    /*
     fn watchpoint_toggled(&mut self, bp_id: u32, enable: bool) {
         // TODO: We should get token if gdb is available, but can't move this below as it borrowchk
         // still not smart enough.
@@ -309,6 +362,7 @@ impl AppInner {
             );
         }
     }
+    */
 
     fn breakpoint_added(&mut self, location: String, condition: String) {
         // TODO: Same as above, we need token only if gdb is available
@@ -339,6 +393,7 @@ impl AppInner {
         }
     }
 
+    /*
     fn watchpoint_added(&mut self, expr: String, type_: WatchpointType) {
         // TODO: Same as above
         let token = self.get_token();
@@ -374,6 +429,7 @@ impl AppInner {
             );
         }
     }
+    */
 
     fn handle_result(&mut self, outer: &App, result: mi::Result) {
         if let Some(ref token) = result.token {
