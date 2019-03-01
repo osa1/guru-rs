@@ -10,14 +10,22 @@ pub struct ExpressionsW {
     store: gtk::TreeStore,
     view: gtk::TreeView,
     scrolled: gtk::ScrolledWindow,
+    entry: gtk::Entry,
+    // The top widget
+    box_: gtk::Box,
     // Shared mutable cell to be able to use in callbacks
     exprs: Rc<RefCell<Vec<ExpressionChild>>>,
-    // How to ask for children of an expression
+    // Callback for getting children of an expression, used when expanding tree nodes.
     get_children: ExprGetChildrenCb,
+    // Callback for adding new expressions
+    add_expr: AddExprCb,
 }
 
-/// How to ask for children of an expression.
+/// Type of the reference for the callback for asking for children of an expression.
 type ExprGetChildrenCb = Rc<RefCell<Option<Box<Fn(&str /* full name of the expression */)>>>>;
+
+/// Type of the reference for the callback for adding new expressions.
+type AddExprCb = Rc<RefCell<Option<Box<Fn(String /* expression */)>>>>;
 
 struct ExpressionChild {
     /// Location of this node in the tree.
@@ -55,10 +63,21 @@ impl ExpressionsW {
             .get_flags()
             .contains(gtk::TreeModelFlags::ITERS_PERSIST));
 
+        // box -> [ scrolled -> tree view, entry ]
+
+        let box_ = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        box_.set_baseline_position(gtk::BaselinePosition::Top);
+
         let scrolled = gtk::ScrolledWindow::new(gtk::NONE_ADJUSTMENT, gtk::NONE_ADJUSTMENT);
         scrolled.set_policy(gtk::PolicyType::Automatic, gtk::PolicyType::Automatic);
+        box_.pack_start(&scrolled, true, true, 0);
+
         let view = gtk::TreeView::new_with_model(&store);
         scrolled.add(&view);
+
+        let entry = gtk::Entry::new();
+        box_.pack_end(&entry, false, false, 0);
+
         let exprs = Rc::new(RefCell::new(vec![]));
 
         //
@@ -77,6 +96,12 @@ impl ExpressionsW {
         add_text_col("Expression", 1);
         add_text_col("Value", 2);
         add_text_col("Type", 3);
+
+        let add_expr: AddExprCb = Rc::new(RefCell::new(None));
+
+        //
+        // Connect row expanded signal
+        //
 
         let tree = exprs.clone();
         let get_children: ExprGetChildrenCb = Rc::new(RefCell::new(None));
@@ -115,23 +140,58 @@ impl ExpressionsW {
             );
         });
 
+        //
+        // Connect expression added signal
+        //
+
+        let add_expr_clone = add_expr.clone();
+        entry.connect_activate(move |w| {
+            if let Some(expr_str) = w.get_text() {
+                if expr_str.as_str().is_empty() {
+                    return;
+                }
+                let expr_str = expr_str.as_str().to_string();
+
+                match *add_expr_clone.borrow() {
+                    None => {
+                        println!(
+                            "\"Expression added\" callback is not set. Ignoring expression: {:?}",
+                            expr_str
+                        );
+                    }
+                    Some(ref cb) => {
+                        cb(expr_str);
+                    }
+                }
+
+                w.set_text("");
+            }
+        });
+
         ExpressionsW {
             store,
             view,
             scrolled,
+            entry,
+            box_,
             exprs,
             get_children,
+            add_expr,
         }
     }
 
     pub fn get_widget(&self) -> &gtk::Widget {
-        self.scrolled.upcast_ref()
+        self.box_.upcast_ref()
     }
 
     /// Set "get children" callback. Argument to the callback is the full name of the expression,
     /// e.g. "var1.x.y".
-    pub fn set_get_children_cb(&mut self, cb: Box<Fn(&str)>) {
+    pub fn connect_get_children(&mut self, cb: Box<Fn(&str)>) {
         *self.get_children.borrow_mut() = Some(cb);
+    }
+
+    pub fn connect_add_expr(&mut self, cb: Box<Fn(String)>) {
+        *self.add_expr.borrow_mut() = Some(cb);
     }
 
     /// Add a top-level expression.
