@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 use gtk::prelude::*;
 
-pub struct ExpressionW {
+pub struct ExpressionsW {
     store: gtk::TreeStore,
     view: gtk::TreeView,
     scrolled: gtk::ScrolledWindow,
@@ -41,8 +41,8 @@ struct ExpressionChild {
 
 // TODO: Put the tree in a scrolled window
 
-impl ExpressionW {
-    pub fn new() -> ExpressionW {
+impl ExpressionsW {
+    pub fn new() -> ExpressionsW {
         let store = gtk::TreeStore::new(&[
             String::static_type(), // full name (not rendered)
             String::static_type(), // expression
@@ -87,7 +87,7 @@ impl ExpressionW {
             let name = store.get_value(&iter, 0).get::<String>().unwrap();
             let expr = store.get_value(&iter, 1).get::<String>().unwrap();
 
-            // The TreeStore path of the node should be the same as its path in `ExpressionW.exprs`
+            // The TreeStore path of the node should be the same as its path in `ExpressionsW.exprs`
             // TODO somehow check this
             let path = path.get_indices();
             assert!(!path.is_empty());
@@ -115,7 +115,7 @@ impl ExpressionW {
             );
         });
 
-        ExpressionW {
+        ExpressionsW {
             store,
             view,
             scrolled,

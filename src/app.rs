@@ -16,7 +16,7 @@ struct AppInner {
     threads_w: widgets::ThreadsW,
     breakpoints_w: widgets::BreakpointsW,
     // watchpoints_w: widgets::WatchpointsW,
-    expression_w: widgets::ExpressionW,
+    expressions_w: widgets::ExpressionsW,
     gdb_w: widgets::GdbW,
     // GDB driver
     gdb: Option<gdb::GDB>,
@@ -66,48 +66,48 @@ impl App {
         let breakpoints_w = widgets::BreakpointsW::new();
         flow_box.insert(breakpoints_w.get_widget(), 0);
 
-        let mut expression_w = widgets::ExpressionW::new();
-        flow_box.insert(expression_w.get_widget(), 1);
+        let mut expressions_w = widgets::ExpressionsW::new();
+        flow_box.insert(expressions_w.get_widget(), 1);
         // let watchpoints_w = widgets::WatchpointsW::new();
         // flow_box.insert(watchpoints_w.get_widget(), 1);
 
         // Add some data for testing
-        expression_w.add(
+        expressions_w.add(
             "var1".to_string(),
             "MainCapability".to_string(),
             None,
             "Capability".to_string(),
             true,
         );
-        expression_w.add(
+        expressions_w.add(
             "var2".to_string(),
             "n_capabilities".to_string(),
             Some("0".to_string()),
             "unsigned int".to_string(),
             false,
         );
-        expression_w.add(
+        expressions_w.add(
             "var1.f".to_string(),
             "f".to_string(),
             None,
             "StgFunTable".to_string(),
             true,
         );
-        expression_w.add(
+        expressions_w.add(
             "var1.r".to_string(),
             "r".to_string(),
             None,
             "StgRegTable".to_string(),
             true,
         );
-        expression_w.add(
+        expressions_w.add(
             "var1.r.x".to_string(),
             "x".to_string(),
             None,
             "int".to_string(),
             true,
         );
-        // expression_w.add(
+        // expressions_w.add(
         //     "var1.r.y".to_string(),
         //     "y".to_string(),
         //     None,
@@ -123,7 +123,7 @@ impl App {
             threads_w,
             breakpoints_w,
             // watchpoints_w,
-            expression_w,
+            expressions_w,
             gdb_w,
             gdb: None,
             token: 0,
