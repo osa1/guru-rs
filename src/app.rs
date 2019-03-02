@@ -317,7 +317,7 @@ impl AppInner {
                         return;
                     }
                     let expr = result.results;
-                    match parsers::parse_expr(expr) {
+                    match parsers::parse_var_create_result(expr) {
                         None => {
                             println!("Can't parse expression");
                         }
@@ -432,10 +432,7 @@ impl AppInner {
                 token,
                 Box::new(move |app_inner, _app, result| {
                     let mut results = result.results;
-                    // TODO handle errors
-                    let bkpt = some!(results.remove("bkpt"));
-                    let bkpt = some!(bkpt.get_tuple());
-                    let bkpt = some!(parsers::parse_breakpoint(bkpt));
+                    let bkpt = some!(parsers::parse_break_insert_result(results));
                     app_inner.breakpoints_w.add_or_update_breakpoint(&bkpt);
                 }),
             );

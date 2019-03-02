@@ -104,9 +104,13 @@ pub fn parse_breakpoint(v: HashMap<mi::Var, mi::Value>) -> Option<Breakpoint> {
     })
 }
 
+pub fn parse_break_insert_result(mut results: HashMap<mi::Var, mi::Value>) -> Option<Breakpoint> {
+    parse_breakpoint(results.remove("bkpt")?.get_tuple()?)
+}
+
 /// Parse results of a `-var-create` command or a `child` in a `children` list in a
 /// `-var-list-children --all-values` result.
-pub fn parse_expr(mut v: HashMap<mi::Var, mi::Value>) -> Option<Value> {
+fn parse_expr(mut v: HashMap<mi::Var, mi::Value>) -> Option<Value> {
     let expr = match v.remove("exp") {
         None => None,
         Some(expr) => Some(expr.get_const()?),
@@ -122,6 +126,10 @@ pub fn parse_expr(mut v: HashMap<mi::Var, mi::Value>) -> Option<Value> {
         type_,
         n_children,
     })
+}
+
+pub fn parse_var_create_result(mut results: HashMap<mi::Var, mi::Value>) -> Option<Value> {
+    parse_expr(results)
 }
 
 pub fn parse_var_list_children_result(
