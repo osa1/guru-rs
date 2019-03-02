@@ -199,7 +199,7 @@ impl ExpressionsW {
         &mut self,
         full_name: String,
         expr: String,
-        value: Option<String>,
+        value: String,
         type_: String,
         has_children: bool,
     ) {
@@ -228,7 +228,7 @@ impl ExpressionsW {
             full_name: full_name.clone(),
             name: full_name,
             expr: Some(expr),
-            value,
+            value: Some(value),
             type_: Some(type_),
             children: vec![],
         };
@@ -240,7 +240,7 @@ impl ExpressionsW {
         &mut self,
         name: String,
         expr: String,
-        value: Option<String>,
+        value: String,
         type_: String,
         has_children: bool,
     ) {
@@ -281,7 +281,7 @@ fn add_child(
     path: &[&str],     // ["y", "z"]
     full_name: String, // "x.y.z"
     expr: String,
-    value: Option<String>,
+    value: String,
     type_: String,
     has_children: bool,
 ) {
@@ -343,7 +343,7 @@ fn add_child(
                 full_name,
                 name: path[0].to_owned(),
                 expr: Some(expr),
-                value,
+                value: Some(value),
                 type_: Some(type_),
                 children: vec![],
             });
@@ -366,7 +366,7 @@ fn add_child(
                 node.full_name = full_name;
                 node.name = path[0].to_owned();
                 node.expr = Some(expr);
-                node.value = value;
+                node.value = Some(value);
                 node.type_ = Some(type_);
             } else {
                 add_child(

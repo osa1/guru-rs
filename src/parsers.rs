@@ -107,7 +107,10 @@ pub fn parse_breakpoint(v: HashMap<mi::Var, mi::Value>) -> Option<Breakpoint> {
 /// Parse results of a `-var-create` command or a `child` in a `children` list in a
 /// `-var-list-children --all-values` result.
 pub fn parse_expr(mut v: HashMap<mi::Var, mi::Value>) -> Option<Value> {
-    let expr = v.remove("exp")?.get_const()?;
+    let expr = match v.remove("exp") {
+        None => None,
+        Some(expr) => Some(expr.get_const()?),
+    };
     let value = v.remove("value")?.get_const()?;
     let name = v.remove("name")?.get_const()?;
     let type_ = v.remove("type")?.get_const()?;
@@ -119,6 +122,17 @@ pub fn parse_expr(mut v: HashMap<mi::Var, mi::Value>) -> Option<Value> {
         type_,
         n_children,
     })
+}
+
+pub fn parse_var_list_children_result(
+    mut results: HashMap<mi::Var, mi::Value>,
+) -> Option<Vec<Value>> {
+    let list = results.remove("children")?.get_result_list()?;
+    let mut ret = vec![];
+    for (_, child) in list {
+        ret.push(parse_expr(child.get_tuple()?)?);
+    }
+    Some(ret)
 }
 
 // >>> -data-disassemble -f <file> -l <line> -n -1 -- 0

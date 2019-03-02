@@ -117,7 +117,7 @@ pub struct Frame {
 
 #[derive(Debug)]
 pub struct Value {
-    pub expr: String,
+    pub expr: Option<String>, // "exp" field, I don't understand what this is
     pub value: String,
     pub name: String,
     pub type_: String,

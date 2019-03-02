@@ -71,50 +71,6 @@ impl App {
         // let watchpoints_w = widgets::WatchpointsW::new();
         // flow_box.insert(watchpoints_w.get_widget(), 1);
 
-        // Add some data for testing
-        expressions_w.add(
-            "var1".to_string(),
-            "MainCapability".to_string(),
-            None,
-            "Capability".to_string(),
-            true,
-        );
-        expressions_w.add(
-            "var2".to_string(),
-            "n_capabilities".to_string(),
-            Some("0".to_string()),
-            "unsigned int".to_string(),
-            false,
-        );
-        expressions_w.add(
-            "var1.f".to_string(),
-            "f".to_string(),
-            None,
-            "StgFunTable".to_string(),
-            true,
-        );
-        expressions_w.add(
-            "var1.r".to_string(),
-            "r".to_string(),
-            None,
-            "StgRegTable".to_string(),
-            true,
-        );
-        expressions_w.add(
-            "var1.r.x".to_string(),
-            "x".to_string(),
-            None,
-            "int".to_string(),
-            true,
-        );
-        // expressions_w.add(
-        //     "var1.r.y".to_string(),
-        //     "y".to_string(),
-        //     None,
-        //     "int".to_string(),
-        //     true,
-        // );
-
         let threads_w = widgets::ThreadsW::new();
         horiz1.pack2(threads_w.get_widget(), true, true);
 
@@ -203,6 +159,34 @@ impl App {
                 .borrow_mut()
                 .gdb_w
                 .connect_text_entered(move |msg| app_clone.send_mi_msg(msg));
+        }
+
+        //
+        // Connect "add expression" (expressions widget)
+        //
+
+        {
+            let app_clone = app.clone();
+            app.0
+                .borrow_mut()
+                .expressions_w
+                .connect_add_expr(Box::new(move |expr| {
+                    app_clone.0.borrow_mut().create_expr(expr)
+                }));
+        }
+
+        //
+        // Connect "get children" (expressions widget)
+        //
+
+        {
+            let app_clone = app.clone();
+            app.0
+                .borrow_mut()
+                .expressions_w
+                .connect_get_children(Box::new(move |name| {
+                    app_clone.0.borrow_mut().get_expr_children(name);
+                }));
         }
 
         app
@@ -318,6 +302,71 @@ impl AppInner {
         let ret = self.token;
         self.token += 1;
         ret
+    }
+
+    fn create_expr(&mut self, expr_str: String) {
+        let token = self.get_token();
+        if let Some(ref mut gdb) = self.gdb {
+            let stdin = gdb.stdin();
+            writeln!(stdin, "{}-var-create - @ {}", token, expr_str).unwrap();
+            self.callbacks.insert(
+                token,
+                Box::new(move |app_inner, _app, result| {
+                    if result.class != mi::ResultClass::Done {
+                        println!("Error: {:?}", result);
+                        return;
+                    }
+                    let expr = result.results;
+                    match parsers::parse_expr(expr) {
+                        None => {
+                            println!("Can't parse expression");
+                        }
+                        Some(expr) => {
+                            app_inner.expressions_w.add(
+                                expr.name,
+                                expr_str.to_owned(),
+                                expr.value,
+                                expr.type_,
+                                expr.n_children != 0,
+                            );
+                        }
+                    }
+                }),
+            );
+        }
+    }
+
+    fn get_expr_children(&mut self, name: &str) {
+        let token = self.get_token();
+        let mut gdb = some!(&mut self.gdb);
+        let stdin = gdb.stdin();
+        writeln!(stdin, "{}-var-list-children --all-values {}", token, name).unwrap();
+        self.callbacks.insert(
+            token,
+            Box::new(move |app_inner, _app, mut result| {
+                if result.class != mi::ResultClass::Done {
+                    println!("Error: {:?}", result);
+                    return;
+                }
+                match parsers::parse_var_list_children_result(result.results) {
+                    None => {
+                        println!("Can't parse children list");
+                        return;
+                    }
+                    Some(exprs) => {
+                        for expr in exprs {
+                            app_inner.expressions_w.add(
+                                expr.name,
+                                expr.expr.unwrap(),
+                                expr.value,
+                                expr.type_,
+                                expr.n_children != 0,
+                            )
+                        }
+                    }
+                }
+            }),
+        );
     }
 
     fn breakpoint_toggled(&mut self, bp_id: u32, enable: bool) {
