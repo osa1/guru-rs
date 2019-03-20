@@ -5,11 +5,11 @@ authors = ["Ömer Sinan Ağacan <omeragacan@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-cairo-rs = { git = "https://github.com/gtk-rs/cairo.git" }
-gdk = { git = "https://github.com/gtk-rs/gdk.git" }
-gio = { git = "https://github.com/gtk-rs/gio.git" }
-glib = { git = "https://github.com/gtk-rs/glib.git" }
+cairo-rs = "0.6.0"
+gdk = "0.10.0"
+gio = "0.6.0"
+glib = "0.7.1"
 
 [dependencies.gtk]
-git = "https://github.com/gtk-rs/gtk.git"
+version = "0.6.0"
 features = ["v3_22_30"]
