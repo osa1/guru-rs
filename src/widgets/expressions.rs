@@ -311,33 +311,38 @@ fn add_child(
             // work
             let mut store_path = store.get_path(&node.iter).unwrap();
             store_path.down();
-            let iter = store.get_iter(&store_path).unwrap();
 
-            // Remove the placeholder if it exists
+            let insert = |iter| {
+                store.set(
+                    iter,
+                    &[0, 1, 2, 3],
+                    &[
+                        &full_name.to_value(),
+                        &expr.to_value(),
+                        &value.to_value(),
+                        &type_.to_value(),
+                    ],
+                );
+            };
+
+            // Update the placeholder if it exists
+            let mut iter = store.get_iter(&store_path).unwrap();
             let iter_name = store.get_value(&iter, 0).get::<String>().unwrap();
             if iter_name.as_str() == "__PLACEHOLDER__" {
-                store.remove(&iter);
+                insert(&iter);
+            } else {
+                // Otherwise insert new row to the end
+                iter = store.insert(&node.iter, -1);
+                insert(&iter);
             }
 
-            // Update the store
-            let iter = store.insert(&node.iter, -1);
-            store.set(
-                &iter,
-                &[0, 1, 2, 3],
-                &[
-                    &full_name.to_value(),
-                    &expr.to_value(),
-                    &value.to_value(),
-                    &type_.to_value(),
-                ],
-            );
             // Create a placeholder iter for children if the new node has children
             if has_children {
                 let iter = store.insert(&iter, -1);
                 store.set(&iter, &[0, 1], &[&"__PLACEHOLDER__", &"__PLACEHOLDER__"]);
             }
 
-            // Insert a new node to the parent
+            // Insert a new node in the model
             node.children.push(ExpressionChild {
                 iter,
                 full_name,
