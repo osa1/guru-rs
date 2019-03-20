@@ -87,22 +87,22 @@ impl GdbW {
 
     pub fn insert_line(&self, str: &str) {
         // FIXME: Somehow this becomes false after first scrolling
-        let scroll_to_bottom = self.should_scroll_to_bottom();
+        // let scroll_to_bottom = self.should_scroll_to_bottom();
+        // println!("scroll_to_bottom: {}", scroll_to_bottom);
 
-        // Insert a new line if text buffer is not empty
         let text_buffer = self.text_view.get_buffer().unwrap();
-        let mut end_iter = text_buffer.get_end_iter();
-        if text_buffer.get_line_count() != 0 {
-            text_buffer.insert_markup(&mut end_iter, "\n");
-        }
 
         // Insert the text
+        let mut end_iter = text_buffer.get_end_iter();
         text_buffer.insert_markup(&mut end_iter, str.trim());
+        let mut end_iter = text_buffer.get_end_iter();
+        text_buffer.insert(&mut end_iter, "\n");
 
-        if scroll_to_bottom {
-            self.scroll_to_bottom();
-            assert!(self.should_scroll_to_bottom());
-        }
+        self.scroll_to_bottom();
+        // if scroll_to_bottom {
+        //     self.scroll_to_bottom();
+        //     assert!(self.should_scroll_to_bottom());
+        // }
     }
 
     pub fn connect_text_entered<F: Fn(String) + 'static>(&self, f: F) {
