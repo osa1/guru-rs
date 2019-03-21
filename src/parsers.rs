@@ -16,7 +16,6 @@ macro_rules! guard {
 
 /// Parse a single frame.
 pub fn parse_frame(v: HashMap<mi::Var, mi::Value>) -> Option<Frame> {
-    println!("parse frame: {:?}", v);
     Some(Frame {
         level: v.get("level")?.get_const_ref()?.parse::<usize>().ok()?,
         addr: v.get("addr")?.get_const_ref()?.to_string(),
@@ -135,6 +134,7 @@ pub fn parse_var_create_result(mut results: HashMap<mi::Var, mi::Value>) -> Opti
 pub fn parse_var_list_children_result(
     mut results: HashMap<mi::Var, mi::Value>,
 ) -> Option<Vec<Value>> {
+    println!("parse_var_list_children_result({:?})", results);
     let list = results.remove("children")?.get_result_list()?;
     let mut ret = vec![];
     for (_, child) in list {

@@ -27,6 +27,7 @@ type ExprGetChildrenCb = Rc<RefCell<Option<Box<Fn(&str /* full name of the expre
 /// Type of the reference for the callback for adding new expressions.
 type AddExprCb = Rc<RefCell<Option<Box<Fn(String /* expression */)>>>>;
 
+// TODO: Rename this
 struct ExpressionChild {
     /// Location of this node in the tree.
     iter: gtk::TreeIter,
@@ -39,7 +40,7 @@ struct ExpressionChild {
     name: String,
 
     /// The expression.
-    expr: Option<String>,
+    expr: String,
     value: Option<String>,
     type_: Option<String>,
 
@@ -133,11 +134,6 @@ impl ExpressionsW {
                     }
                 }
             }
-
-            println!(
-                "Row expanded. Name: {} expr: {} path: {:?} parent full name: {}",
-                name, expr, path, node.full_name
-            );
         });
 
         //
@@ -227,7 +223,7 @@ impl ExpressionsW {
             iter,
             full_name: full_name.clone(),
             name: full_name,
-            expr: Some(expr),
+            expr,
             value: Some(value),
             type_: Some(type_),
             children: vec![],
@@ -247,11 +243,9 @@ impl ExpressionsW {
         let path = name.split('.').collect::<Vec<_>>();
         if path.len() == 1 {
             // Add a top-level expression
-            println!("Adding top-level expression: {}", name);
             self.add_top(name, expr, value, type_, has_children);
         } else {
             // Otherwise start recursing down to find/create the node we're looking for
-            println!("Adding child expression: {}", name);
             let top_level_name = path[0];
             for node in self.exprs.borrow_mut().iter_mut() {
                 if node.name == top_level_name {
@@ -285,20 +279,15 @@ fn add_child(
     type_: String,
     has_children: bool,
 ) {
-    println!("add_child path: {:?} full_name: {:?}", path, full_name);
-
     // Find index of this node in the parent (`node`)
     let mut node_idx: Option<usize> = None;
     let p = path[0];
     for i in 0..node.children.len() {
-        println!("checking child node {:?} for {}", node.name, p);
         if node.children[i].name == p {
             node_idx = Some(i);
             break;
         }
     }
-
-    println!("node_idx: {:?}", node_idx);
 
     match node_idx {
         None => {
@@ -347,7 +336,7 @@ fn add_child(
                 iter,
                 full_name,
                 name: path[0].to_owned(),
-                expr: Some(expr),
+                expr,
                 value: Some(value),
                 type_: Some(type_),
                 children: vec![],
@@ -357,7 +346,7 @@ fn add_child(
             if path.len() == 1 {
                 // Update the store
                 store.set(
-                    &node.iter,
+                    &node.children[node_idx].iter,
                     &[0, 1, 2, 3],
                     &[
                         &full_name.to_value(),
@@ -370,7 +359,7 @@ fn add_child(
                 let mut node = &mut node.children[node_idx];
                 node.full_name = full_name;
                 node.name = path[0].to_owned();
-                node.expr = Some(expr);
+                node.expr = expr;
                 node.value = Some(value);
                 node.type_ = Some(type_);
             } else {
@@ -386,5 +375,27 @@ fn add_child(
                 )
             }
         }
+    }
+}
+
+//
+// Refreshing the state after gdb runs
+//
+
+impl ExpressionsW {
+    pub fn refresh(&self) {
+        // TODO: Should I be using `-var-update --all-values *` ?
+        // TODO: This doesn't handle top-level expressions with no children
+        let get_children_borrow = self.get_children.borrow();
+        let get_children: &Fn(&str) = &**get_children_borrow.as_ref().unwrap(); // welp
+        for expr in self.exprs.borrow().iter() {
+            expr.refresh(get_children);
+        }
+    }
+}
+
+impl ExpressionChild {
+    pub fn refresh(&self, get_children: &Fn(&str)) {
+        get_children(&self.name);
     }
 }

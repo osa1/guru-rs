@@ -82,7 +82,7 @@ fn message_handler(stdout: &mut ChildStdout, msg_sender: &mut Sender<mi::Output>
                         println!("Can't parse mi message: {:?}", msg);
                     }
                     Some(mi_msgs) => {
-                        println!("mi message parsed: {:?}", mi_msgs);
+                        // println!("mi message parsed: {:?}", mi_msgs);
                         msg_sender.send(mi_msgs).unwrap();
                         msg_bytes.drain(0..idx + MI_MSG_SEP.len());
                     }
@@ -92,7 +92,7 @@ fn message_handler(stdout: &mut ChildStdout, msg_sender: &mut Sender<mi::Output>
                 // Read more from the socket
                 let mut read_buf: [u8; 10000] = [0; 10000];
                 let len = stdout.read(&mut read_buf).unwrap();
-                println!("Message handler read {} bytes", len);
+                // println!("Message handler read {} bytes", len);
                 if len == 0 {
                     // TODO: Somehow signal socket closure
                     return;

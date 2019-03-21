@@ -13,19 +13,19 @@ use std::rc::Rc;
 
 struct AppInner {
     // Widgets
-    threads_w: widgets::ThreadsW,
-    breakpoints_w: widgets::BreakpointsW,
+    threads_w: RefCell<widgets::ThreadsW>,
+    breakpoints_w: RefCell<widgets::BreakpointsW>,
     // watchpoints_w: widgets::WatchpointsW,
-    expressions_w: widgets::ExpressionsW,
-    gdb_w: widgets::GdbW,
+    expressions_w: RefCell<widgets::ExpressionsW>,
+    gdb_w: RefCell<widgets::GdbW>,
     // GDB driver
-    gdb: Option<gdb::GDB>,
-    token: u64,
-    callbacks: HashMap<u64, Box<Fn(&mut AppInner, &App, mi::Result)>>,
+    gdb: RefCell<Option<gdb::GDB>>,
+    token: RefCell<u64>, // Maybe use an atomic type?
+    callbacks: RefCell<HashMap<u64, Box<Fn(&AppInner, &App, mi::Result)>>>,
 }
 
 #[derive(Clone)]
-pub struct App(Rc<RefCell<AppInner>>);
+pub struct App(Rc<AppInner>);
 
 impl App {
     pub fn new(gtk_app: &gtk::Application) -> App {
@@ -75,16 +75,16 @@ impl App {
         horiz1.pack2(threads_w.get_widget(), true, true);
 
         window.show_all();
-        let app = App(Rc::new(RefCell::new(AppInner {
-            threads_w,
-            breakpoints_w,
+        let app = App(Rc::new(AppInner {
+            threads_w: RefCell::new(threads_w),
+            breakpoints_w: RefCell::new(breakpoints_w),
             // watchpoints_w,
-            expressions_w,
-            gdb_w,
-            gdb: None,
-            token: 0,
-            callbacks: HashMap::new(),
-        })));
+            expressions_w: RefCell::new(expressions_w),
+            gdb_w: RefCell::new(gdb_w),
+            gdb: RefCell::new(None),
+            token: RefCell::new(0),
+            callbacks: RefCell::new(HashMap::new()),
+        }));
 
         //
         // Connect "breakpoint enabled" (the toggle buttons in breakpoint list)
@@ -93,10 +93,10 @@ impl App {
         {
             let app_clone = app.clone();
             app.0
-                .borrow_mut()
                 .breakpoints_w
+                .borrow_mut()
                 .connect_breakpoint_enabled(Box::new(move |bp_id, enable| {
-                    app_clone.0.borrow_mut().breakpoint_toggled(bp_id, enable);
+                    app_clone.0.breakpoint_toggled(bp_id, enable);
                 }));
         }
 
@@ -107,13 +107,10 @@ impl App {
         {
             let app_clone = app.clone();
             app.0
-                .borrow_mut()
                 .breakpoints_w
+                .borrow_mut()
                 .connect_breakpoint_added(Box::new(move |location, condition| {
-                    app_clone
-                        .0
-                        .borrow_mut()
-                        .breakpoint_added(location, condition);
+                    app_clone.0.breakpoint_added(location, condition);
                 }));
         }
 
@@ -156,8 +153,8 @@ impl App {
         {
             let app_clone = app.clone();
             app.0
-                .borrow_mut()
                 .gdb_w
+                .borrow_mut()
                 .connect_text_entered(move |msg| app_clone.send_mi_msg(msg));
         }
 
@@ -168,11 +165,9 @@ impl App {
         {
             let app_clone = app.clone();
             app.0
-                .borrow_mut()
                 .expressions_w
-                .connect_add_expr(Box::new(move |expr| {
-                    app_clone.0.borrow_mut().create_expr(expr)
-                }));
+                .borrow_mut()
+                .connect_add_expr(Box::new(move |expr| app_clone.0.create_expr(expr)));
         }
 
         //
@@ -182,10 +177,10 @@ impl App {
         {
             let app_clone = app.clone();
             app.0
-                .borrow_mut()
                 .expressions_w
+                .borrow_mut()
                 .connect_get_children(Box::new(move |name| {
-                    app_clone.0.borrow_mut().get_expr_children(name);
+                    app_clone.0.get_expr_children(name);
                 }));
         }
 
@@ -201,8 +196,8 @@ impl App {
             recv.attach(&main_context, move |msg| app.mi_msg_recvd(msg));
         }
         // TODO error checking
-        self.0.borrow_mut().gdb = Some(gdb);
-        self.0.borrow().gdb_w.enter_connected_state();
+        *self.0.gdb.borrow_mut() = Some(gdb);
+        self.0.gdb_w.borrow().enter_connected_state();
     }
 
     pub fn mi_msg_recvd(&self, mi_msgs: mi::Output) -> gtk::Continue {
@@ -216,52 +211,50 @@ impl App {
     }
 
     fn mi_result_recvd(&self, result: mi::Result) {
-        let mut inner = self.0.borrow_mut();
-        inner.gdb_w.insert_line(&format!(
+        self.0.gdb_w.borrow_mut().insert_line(&format!(
             "<span color=\"#6BDEB1\">[RESULT]</span> {}",
             render_result(&result)
         ));
-        inner.handle_result(self, result);
+        self.0.handle_result(self, result);
     }
 
     fn mi_oob_recvd(&self, oob: mi::OutOfBandResult) {
-        let mut inner = self.0.borrow_mut();
         match oob {
             mi::OutOfBandResult::ExecAsyncRecord(async_) => {
-                inner.gdb_w.insert_line(&format!(
+                self.0.gdb_w.borrow().insert_line(&format!(
                     "<span color=\"#505B70\">[EXEC]</span> {}",
                     render_async_record(&async_)
                 ));
-                inner.handle_async_result(self, async_);
+                self.0.handle_async_result(self, async_);
             }
             mi::OutOfBandResult::StatusAsyncRecord(async_) => {
-                inner.gdb_w.insert_line(&format!(
+                self.0.gdb_w.borrow().insert_line(&format!(
                     "<span color=\"#3FBCA6\">[STATUS]</span> {}",
                     render_async_record(&async_)
                 ));
-                inner.handle_async_result(self, async_);
+                self.0.handle_async_result(self, async_);
             }
             mi::OutOfBandResult::NotifyAsyncRecord(async_) => {
-                inner.gdb_w.insert_line(&format!(
+                self.0.gdb_w.borrow().insert_line(&format!(
                     "<span color=\"#CBCE79\">[NOTIFY]</span> {}",
                     render_async_record(&async_)
                 ));
-                inner.handle_async_result(self, async_);
+                self.0.handle_async_result(self, async_);
             }
             mi::OutOfBandResult::ConsoleStreamRecord(str) => {
-                inner.gdb_w.insert_line(&format!(
+                self.0.gdb_w.borrow().insert_line(&format!(
                     "<span color=\"#A1D490\">[CONSOLE]</span> {}",
                     glib::markup_escape_text(&str)
                 ));
             }
             mi::OutOfBandResult::TargetStreamRecord(str) => {
-                inner.gdb_w.insert_line(&format!(
+                self.0.gdb_w.borrow().insert_line(&format!(
                     "<span color=\"#90C3D4\">[TARGET]</span> {}",
                     glib::markup_escape_text(&str)
                 ));
             }
             mi::OutOfBandResult::LogStreamRecord(str) => {
-                inner.gdb_w.insert_line(&format!(
+                self.0.gdb_w.borrow().insert_line(&format!(
                     "<span color=\"#D4A190\">[LOG]</span> {}",
                     glib::markup_escape_text(&str)
                 ));
@@ -270,15 +263,14 @@ impl App {
     }
 
     pub fn send_mi_msg(&self, msg: String) {
-        let mut inner = self.0.borrow_mut();
-        match inner.gdb.as_mut() {
+        match *self.0.gdb.borrow_mut() {
             None => {
                 // This should be a bug as the entry should be disabled when we're not connected
                 println!("Can't send mi msg! GDB not available!");
             }
-            Some(gdb) => {
+            Some(ref mut gdb) => {
                 writeln!(gdb.stdin(), "{}", msg).unwrap();
-                inner.gdb_w.insert_line(&format!(">>> {}", msg));
+                self.0.gdb_w.borrow().insert_line(&format!(">>> {}", msg));
                 // let _ = gdb.stdin().flush();
             }
         }
@@ -297,19 +289,33 @@ macro_rules! some {
     };
 }
 
+macro_rules! some_ret {
+    ( $x:expr, $ret:expr ) => {
+        match $x {
+            Some(ret) => ret,
+            None => {
+                return $ret;
+            }
+        }
+    };
+}
+
 impl AppInner {
-    fn get_token(&mut self) -> u64 {
-        let ret = self.token;
-        self.token += 1;
+    fn get_token(&self) -> u64 {
+        let mut token_ref = self.token.borrow_mut();
+        let ret = *token_ref;
+        *token_ref = ret + 1;
         ret
     }
 
-    fn create_expr(&mut self, expr_str: String) {
+    fn create_expr(&self, expr_str: String) {
         let token = self.get_token();
-        if let Some(ref mut gdb) = self.gdb {
+        let mut gdb_ref = self.gdb.borrow_mut();
+        if let Some(ref mut gdb) = *gdb_ref {
             let stdin = gdb.stdin();
             writeln!(stdin, "{}-var-create - @ {}", token, expr_str).unwrap();
-            self.callbacks.insert(
+            drop(gdb_ref);
+            self.callbacks.borrow_mut().insert(
                 token,
                 Box::new(move |app_inner, _app, result| {
                     if result.class != mi::ResultClass::Done {
@@ -322,7 +328,7 @@ impl AppInner {
                             println!("Can't parse expression");
                         }
                         Some(expr) => {
-                            app_inner.expressions_w.add(
+                            app_inner.expressions_w.borrow_mut().add(
                                 expr.name,
                                 expr_str.to_owned(),
                                 expr.value,
@@ -336,55 +342,64 @@ impl AppInner {
         }
     }
 
-    fn get_expr_children(&mut self, name: &str) {
+    fn get_expr_children(&self, name: &str) {
         let token = self.get_token();
-        let mut gdb = some!(&mut self.gdb);
-        let stdin = gdb.stdin();
-        writeln!(stdin, "{}-var-list-children --all-values {}", token, name).unwrap();
-        self.callbacks.insert(
-            token,
-            Box::new(move |app_inner, _app, mut result| {
-                if result.class != mi::ResultClass::Done {
-                    println!("Error: {:?}", result);
-                    return;
-                }
-                match parsers::parse_var_list_children_result(result.results) {
-                    None => {
-                        println!("Can't parse children list");
+        let mut gdb_ref = self.gdb.borrow_mut();
+        if let Some(ref mut gdb) = *gdb_ref {
+            let stdin = gdb.stdin();
+            writeln!(stdin, "{}-var-list-children --all-values {}", token, name).unwrap();
+            drop(gdb_ref);
+
+            self.callbacks.borrow_mut().insert(
+                token,
+                Box::new(move |app_inner, _app, mut result| {
+                    if result.class != mi::ResultClass::Done {
+                        println!("Error: {:?}", result);
                         return;
                     }
-                    Some(exprs) => {
-                        for expr in exprs {
-                            app_inner.expressions_w.add(
-                                expr.name,
-                                expr.expr.unwrap(),
-                                expr.value,
-                                expr.type_,
-                                expr.n_children != 0,
-                            )
+                    match parsers::parse_var_list_children_result(result.results) {
+                        None => {
+                            println!("Can't parse children list");
+                            return;
+                        }
+                        Some(exprs) => {
+                            for expr in exprs {
+                                app_inner.expressions_w.borrow_mut().add(
+                                    expr.name,
+                                    expr.expr.unwrap(),
+                                    expr.value,
+                                    expr.type_,
+                                    expr.n_children != 0,
+                                )
+                            }
                         }
                     }
-                }
-            }),
-        );
+                }),
+            );
+        }
     }
 
-    fn breakpoint_toggled(&mut self, bp_id: u32, enable: bool) {
+    fn breakpoint_toggled(&self, bp_id: u32, enable: bool) {
         // TODO: We should get token if gdb is available, but can't move this below as it borrowchk
         // still not smart enough.
         let token = self.get_token();
-        if let Some(ref mut gdb) = self.gdb {
+        let mut gdb_ref = self.gdb.borrow_mut();
+        if let Some(ref mut gdb) = *gdb_ref {
             let stdin = gdb.stdin();
             if enable {
                 writeln!(stdin, "{}-break-enable {}", token, bp_id).unwrap();
             } else {
                 writeln!(stdin, "{}-break-disable {}", token, bp_id).unwrap();
             }
-            self.callbacks.insert(
+            drop(gdb_ref);
+            self.callbacks.borrow_mut().insert(
                 token,
                 Box::new(move |app_inner, _app, _result| {
                     // TODO: Check if the result class is "Done"
-                    app_inner.breakpoints_w.toggle_breakpoint(bp_id, enable)
+                    app_inner
+                        .breakpoints_w
+                        .borrow_mut()
+                        .toggle_breakpoint(bp_id, enable)
                 }),
             );
         }
@@ -413,10 +428,11 @@ impl AppInner {
     }
     */
 
-    fn breakpoint_added(&mut self, location: String, condition: String) {
+    fn breakpoint_added(&self, location: String, condition: String) {
         // TODO: Same as above, we need token only if gdb is available
         let token = self.get_token();
-        if let Some(ref mut gdb) = self.gdb {
+        let mut gdb_ref = self.gdb.borrow_mut();
+        if let Some(ref mut gdb) = *gdb_ref {
             let stdin = gdb.stdin();
             if condition.is_empty() {
                 writeln!(stdin, "{}-break-insert {}", token, location).unwrap();
@@ -428,12 +444,16 @@ impl AppInner {
                 )
                 .unwrap();
             }
-            self.callbacks.insert(
+            drop(gdb_ref);
+            self.callbacks.borrow_mut().insert(
                 token,
                 Box::new(move |app_inner, _app, result| {
-                    let mut results = result.results;
+                    let results = result.results;
                     let bkpt = some!(parsers::parse_break_insert_result(results));
-                    app_inner.breakpoints_w.add_or_update_breakpoint(&bkpt);
+                    app_inner
+                        .breakpoints_w
+                        .borrow_mut()
+                        .add_or_update_breakpoint(&bkpt);
                 }),
             );
         }
@@ -477,9 +497,10 @@ impl AppInner {
     }
     */
 
-    fn handle_result(&mut self, outer: &App, result: mi::Result) {
+    fn handle_result(&self, outer: &App, result: mi::Result) {
         if let Some(ref token) = result.token {
-            match self.callbacks.remove(&token) {
+            let cb = self.callbacks.borrow_mut().remove(&token);
+            match cb {
                 None => {
                     println!("Can't find callback for result {}", token);
                 }
@@ -490,28 +511,36 @@ impl AppInner {
         }
     }
 
-    fn handle_async_result(&mut self, _outer: &App, mut async_: mi::AsyncRecord) {
+    // true -> execution stopped, false -> something else
+    fn handle_async_result(&self, _outer: &App, mut async_: mi::AsyncRecord) {
         match async_.class.as_str() {
             "breakpoint-created" | "breakpoint-modified" => {
                 let bkpt = some!(async_.results.remove("bkpt"));
                 let bkpt = some!(bkpt.get_tuple());
                 let bkpt = some!(parsers::parse_breakpoint(bkpt));
-                self.breakpoints_w.add_or_update_breakpoint(&bkpt);
+                self.breakpoints_w
+                    .borrow_mut()
+                    .add_or_update_breakpoint(&bkpt);
             }
             "stopped" => {
-                // Execution stopped. Update threads.
+                // Execution stopped. Update threads and expressions.
                 let token = self.get_token();
-                let gdb = some!(self.gdb.as_mut());
+                let mut gdb_ref = self.gdb.borrow_mut();
+                let mut gdb = gdb_ref.as_mut().unwrap();
                 writeln!(gdb.stdin(), "{}-thread-info", token).unwrap();
-                self.threads_w.clear();
-                self.callbacks.insert(token, Box::new(thread_info_cb));
+                drop(gdb_ref);
+                self.threads_w.borrow_mut().clear();
+                self.callbacks
+                    .borrow_mut()
+                    .insert(token, Box::new(thread_info_cb));
+                self.expressions_w.borrow().refresh();
             }
             _ => {}
         }
     }
 }
 
-fn thread_info_cb(inner: &mut AppInner, _outer: &App, mut result: mi::Result) {
+fn thread_info_cb(inner: &AppInner, _outer: &App, mut result: mi::Result) {
     // [RESULT] Done: current-thread-id = 1, threads = [{core = 4, frame = {level = 0, file = ../sysdeps/unix/sysv/linux/write.c, fullname = /build/glibc-OTsEL5/glibc-2.27/nptl/../sysdeps/unix/sysv/linux/write.c, func = __libc_write, addr = 0x00007ffff591e2b7, args = [{value = 11, name = fd}, {value = 0x555555d44860, name = buf}, {value = 4, name = nbytes}], line = 27}, state = stopped, target-id = Thread 0x7ffff7fbdb80 (LWP 19785), id = 1, name = guru}, {id = 2, target-id = Thread 0x7fffed538700 (LWP 19789), frame = {fullname = /build/glibc-OTsEL5/glibc-2.27/io/../sysdeps/unix/sysv/linux/poll.c, addr = 0x00007ffff5418bf9, func = __GI___poll, file = ../sysdeps/unix/sysv/linux/poll.c, args = [{value = 0x55555592e740, name = fds}, {value = 1, name = nfds}, {name = timeout, value = -1}], line = 29, level = 0}, state = stopped, core = 4, name = gmain}, {name = gdbus, state = stopped, target-id = Thread 0x7fffecd37700 (LWP 19790), id = 3, frame = {level = 0, func = __GI___poll, line = 29, args = [{value = 0x555555942bf0, name = fds}, {value = 2, name = nfds}, {value = -1, name = timeout}], addr = 0x00007ffff5418bf9, file = ../sysdeps/unix/sysv/linux/poll.c, fullname = /build/glibc-OTsEL5/glibc-2.27/io/../sysdeps/unix/sysv/linux/poll.c}, core = 1}, {target-id = Thread 0x7fffe778e700 (LWP 19792), core = 7, id = 5, name = pool, frame = {args = [], func = syscall, level = 0, file = ../sysdeps/unix/sysv/linux/x86_64/syscall.S, fullname = /build/glibc-OTsEL5/glibc-2.27/misc/../sysdeps/unix/sysv/linux/x86_64/syscall.S, addr = 0x00007ffff541f839, line = 38}, state = stopped}]
     if result.class != mi::ResultClass::Done {
         return;
@@ -528,7 +557,8 @@ fn thread_info_cb(inner: &mut AppInner, _outer: &App, mut result: mi::Result) {
             str::parse::<i32>(thread.remove("id").unwrap().get_const_ref().unwrap()).unwrap();
         let target_id = thread.remove("target-id").unwrap().get_const().unwrap();
         let token = inner.get_token();
-        let gdb = inner.gdb.as_mut().unwrap();
+        let mut gdb_ref = inner.gdb.borrow_mut();
+        let mut gdb = gdb_ref.as_mut().unwrap();
         writeln!(
             gdb.stdin(),
             "{}-stack-list-frames --thread {}",
@@ -536,7 +566,7 @@ fn thread_info_cb(inner: &mut AppInner, _outer: &App, mut result: mi::Result) {
             thread_id
         )
         .unwrap();
-        inner.callbacks.insert(
+        inner.callbacks.borrow_mut().insert(
             token,
             Box::new(move |inner, outer, result| {
                 thread_stack_cb(inner, outer, result, thread_id, &target_id)
@@ -546,7 +576,7 @@ fn thread_info_cb(inner: &mut AppInner, _outer: &App, mut result: mi::Result) {
 }
 
 fn thread_stack_cb(
-    inner: &mut AppInner,
+    inner: &AppInner,
     _outer: &App,
     mut result: mi::Result,
     thread_id: i32,
@@ -560,7 +590,10 @@ fn thread_stack_cb(
         .get_result_list()
         .unwrap();
     let bt = parsers::parse_backtrace(bt).unwrap();
-    inner.threads_w.add_thread(thread_id, target_id, &bt);
+    inner
+        .threads_w
+        .borrow_mut()
+        .add_thread(thread_id, target_id, &bt);
     // TODO: Doing this on every update is not a good idea!
     // inner.threads_w.reset_cols();
 }
