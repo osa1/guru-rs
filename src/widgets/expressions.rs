@@ -263,6 +263,52 @@ impl ExpressionsW {
             }
         }
     }
+
+    pub fn update_value(&mut self, name: String, value: String) {
+        let path = name.split('.').collect::<Vec<_>>();
+        if path.len() == 1 {
+            // Add a top-level expression
+            for expr in self.exprs.borrow_mut().iter_mut() {
+                if expr.name == path[0] {
+                    self.store.set(&expr.iter, &[2], &[&value.to_value()]);
+                    expr.value = Some(value);
+                    break;
+                }
+            }
+        } else {
+            let top_level_name = path[0];
+            for node in self.exprs.borrow_mut().iter_mut() {
+                if node.name == top_level_name {
+                    return update_value(&self.store, node, &path[1..], value);
+                }
+            }
+        }
+    }
+}
+
+fn update_value(
+    store: &gtk::TreeStore,
+    mut node: &mut ExpressionChild,
+    path: &[&str],
+    value: String,
+) {
+    // Find index of this node in the parent (`node`)
+    let mut node_idx: Option<usize> = None;
+    let p = path[0];
+    for i in 0..node.children.len() {
+        if node.children[i].name == p {
+            if path.len() == 1 {
+                let mut node = &mut node.children[i];
+                store.set(&node.iter, &[2], &[&value.to_value()]);
+                node.value = Some(value);
+                return;
+            } else {
+                return update_value(store, &mut node.children[i], &path[1..], value);
+            }
+        }
+    }
+
+    println!("update_value can't find node for path: {:?}", path);
 }
 
 /// Add a child expression.
@@ -375,27 +421,5 @@ fn add_child(
                 )
             }
         }
-    }
-}
-
-//
-// Refreshing the state after gdb runs
-//
-
-impl ExpressionsW {
-    pub fn refresh(&self) {
-        // TODO: Should I be using `-var-update --all-values *` ?
-        // TODO: This doesn't handle top-level expressions with no children
-        let get_children_borrow = self.get_children.borrow();
-        let get_children: &Fn(&str) = &**get_children_borrow.as_ref().unwrap(); // welp
-        for expr in self.exprs.borrow().iter() {
-            expr.refresh(get_children);
-        }
-    }
-}
-
-impl ExpressionChild {
-    pub fn refresh(&self, get_children: &Fn(&str)) {
-        get_children(&self.name);
     }
 }

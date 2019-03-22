@@ -523,17 +523,22 @@ impl AppInner {
                     .add_or_update_breakpoint(&bkpt);
             }
             "stopped" => {
-                // Execution stopped. Update threads and expressions.
+                // Execution stopped. Update threads.
                 let token = self.get_token();
                 let mut gdb_ref = self.gdb.borrow_mut();
                 let mut gdb = gdb_ref.as_mut().unwrap();
                 writeln!(gdb.stdin(), "{}-thread-info", token).unwrap();
-                drop(gdb_ref);
+                let token = self.get_token();
                 self.threads_w.borrow_mut().clear();
                 self.callbacks
                     .borrow_mut()
                     .insert(token, Box::new(thread_info_cb));
-                self.expressions_w.borrow().refresh();
+                // Update expressions
+                writeln!(gdb.stdin(), "{}-var-update --all-values *", token).unwrap();
+                drop(gdb_ref);
+                self.callbacks
+                    .borrow_mut()
+                    .insert(token, Box::new(var_update_cb));
             }
             _ => {}
         }
@@ -572,6 +577,28 @@ fn thread_info_cb(inner: &AppInner, _outer: &App, mut result: mi::Result) {
                 thread_stack_cb(inner, outer, result, thread_id, &target_id)
             }),
         );
+    }
+}
+
+fn var_update_cb(inner: &AppInner, _outer: &App, mut result: mi::Result) {
+    println!("var_update_cb: {:?}", result);
+    if result.class != mi::ResultClass::Done {
+        return;
+    }
+    let changelist = result
+        .results
+        .remove("changelist")
+        .unwrap()
+        .get_value_list()
+        .unwrap();
+
+    let mut expressions_w = inner.expressions_w.borrow_mut();
+    for change in changelist {
+        let mut tuple = change.get_tuple().unwrap();
+        let name = tuple.remove("name").unwrap().get_const().unwrap();
+        let value = tuple.remove("value").unwrap().get_const().unwrap();
+        println!("{} -> {}", name, value);
+        expressions_w.update_value(name, value);
     }
 }
 
